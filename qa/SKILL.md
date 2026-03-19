@@ -262,11 +262,15 @@ If `NEEDS_SETUP`:
 ```bash
 # Detect existing test framework
 ls jest.config.* vitest.config.* playwright.config.* .rspec pytest.ini pyproject.toml phpunit.xml 2>/dev/null
-ls -d test/ tests/ spec/ __tests__/ cypress/ e2e/ 2>/dev/null
+ls -d test/ tests/ spec/ __tests__/ cypress/ e2e/ Tests/ 2>/dev/null
+# Detect Swift/Xcode projects
+ls Package.swift *.xcodeproj *.xcworkspace 2>/dev/null | head -1
+grep -rq "import XCTest\|import Testing\|@Test" Tests/ test/ 2>/dev/null && echo "SWIFT_TESTS_FOUND"
 [ -f .gstack/no-test-bootstrap ] && echo "BOOTSTRAP_DECLINED"
 ```
 
 **If test framework detected:** Read 2-3 existing test files to learn conventions. Skip bootstrap.
+**If SWIFT_TESTS_FOUND:** Swift test target exists. If `swift-testing-pro` skill is installed, defer to it for Swift-specific test guidance. Skip bootstrap.
 **If BOOTSTRAP_DECLINED:** Skip bootstrap.
 **If no tests found:** Read `lib/test-bootstrap.md` in the skill directory for the full bootstrap workflow (framework selection, installation, configuration, CI setup).
 

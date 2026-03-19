@@ -1064,12 +1064,19 @@ function generateTestBootstrapFull(_ctx: TemplateContext): string {
 [ -f Cargo.toml ] && echo "RUNTIME:rust"
 [ -f composer.json ] && echo "RUNTIME:php"
 [ -f mix.exs ] && echo "RUNTIME:elixir"
+# Detect Swift/Xcode projects
+[ -f Package.swift ] && echo "RUNTIME:swift"
+ls *.xcodeproj *.xcworkspace 2>/dev/null | head -1 | grep -q . && echo "RUNTIME:swift"
+[ -f *.xcodeproj/project.pbxproj ] 2>/dev/null && echo "RUNTIME:swift"
 # Detect sub-frameworks
 [ -f Gemfile ] && grep -q "rails" Gemfile 2>/dev/null && echo "FRAMEWORK:rails"
 [ -f package.json ] && grep -q '"next"' package.json 2>/dev/null && echo "FRAMEWORK:nextjs"
+[ -f Package.swift ] && grep -q "SwiftUI" Package.swift 2>/dev/null && echo "FRAMEWORK:swiftui"
 # Check for existing test infrastructure
 ls jest.config.* vitest.config.* playwright.config.* .rspec pytest.ini pyproject.toml phpunit.xml 2>/dev/null
-ls -d test/ tests/ spec/ __tests__/ cypress/ e2e/ 2>/dev/null
+ls -d test/ tests/ spec/ __tests__/ cypress/ e2e/ Tests/ 2>/dev/null
+# Detect Swift test targets (XCTest or Swift Testing)
+grep -rq "import XCTest\\|import Testing\\|@Test\\|XCTestCase" Tests/ test/ 2>/dev/null && echo "SWIFT_TESTS_FOUND"
 # Check opt-out marker
 [ -f .gstack/no-test-bootstrap ] && echo "BOOTSTRAP_DECLINED"
 \`\`\`
@@ -1081,10 +1088,13 @@ Store conventions as prose context for use in Phase 8e.5 or Step 3.4. **Skip the
 
 **If BOOTSTRAP_DECLINED** appears: Print "Test bootstrap previously declined — skipping." **Skip the rest of bootstrap.**
 
+**If SWIFT_TESTS_FOUND** appears: Print "Swift test target detected. Using existing Swift Testing / XCTest setup." Read 2-3 existing test files from Tests/ to learn conventions. If the \`swift-testing-pro\` or \`swiftui-pro\` skills are installed, defer to those for Swift-specific test guidance. **Skip the rest of bootstrap.**
+
 **If NO runtime detected** (no config files found): Use AskUserQuestion:
 "I couldn't detect your project's language. What runtime are you using?"
-Options: A) Node.js/TypeScript B) Ruby/Rails C) Python D) Go E) Rust F) PHP G) Elixir H) This project doesn't need tests.
-If user picks H → write \`.gstack/no-test-bootstrap\` and continue without tests.
+Options: A) Node.js/TypeScript B) Ruby/Rails C) Python D) Go E) Rust F) PHP G) Elixir H) Swift/iOS I) This project doesn't need tests.
+If user picks I → write \`.gstack/no-test-bootstrap\` and continue without tests.
+If user picks H (Swift/iOS) → check if \`swift-testing-pro\` skill is installed. If so, defer to it for test guidance. If not, use the built-in Swift knowledge below.
 
 **If runtime detected but no test framework — bootstrap:**
 
@@ -1106,6 +1116,7 @@ If WebSearch is unavailable, use this built-in knowledge table:
 | Rust | cargo test (built-in) + mockall | — |
 | PHP | phpunit + mockery | pest |
 | Elixir | ExUnit (built-in) + ex_machina | — |
+| Swift/iOS | Swift Testing (built-in, structs + \`#expect\`) | XCTest (for UI tests only) |
 
 ### B3. Framework selection
 
@@ -1211,11 +1222,15 @@ function generateTestBootstrap(_ctx: TemplateContext): string {
 \`\`\`bash
 # Detect existing test framework
 ls jest.config.* vitest.config.* playwright.config.* .rspec pytest.ini pyproject.toml phpunit.xml 2>/dev/null
-ls -d test/ tests/ spec/ __tests__/ cypress/ e2e/ 2>/dev/null
+ls -d test/ tests/ spec/ __tests__/ cypress/ e2e/ Tests/ 2>/dev/null
+# Detect Swift/Xcode projects
+ls Package.swift *.xcodeproj *.xcworkspace 2>/dev/null | head -1
+grep -rq "import XCTest\\|import Testing\\|@Test" Tests/ test/ 2>/dev/null && echo "SWIFT_TESTS_FOUND"
 [ -f .gstack/no-test-bootstrap ] && echo "BOOTSTRAP_DECLINED"
 \`\`\`
 
 **If test framework detected:** Read 2-3 existing test files to learn conventions. Skip bootstrap.
+**If SWIFT_TESTS_FOUND:** Swift test target exists. If \`swift-testing-pro\` skill is installed, defer to it for Swift-specific test guidance. Skip bootstrap.
 **If BOOTSTRAP_DECLINED:** Skip bootstrap.
 **If no tests found:** Read \`lib/test-bootstrap.md\` in the skill directory for the full bootstrap workflow (framework selection, installation, configuration, CI setup).`;
 }
