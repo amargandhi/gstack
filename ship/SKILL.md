@@ -40,6 +40,14 @@ them when the user explicitly asks. The user opted out of proactive suggestions.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
 
+## AskUserQuestion Format
+
+When asking the user a question, follow this structure:
+1. **Re-ground:** State the current task and context (1-2 sentences)
+2. **Simplify:** Explain in plain English what the user needs to decide
+3. **Recommend:** State the recommended choice and why
+4. **Options:** Lettered: `A) ... B) ... C) ...`
+
 ```bash
 _CONTRIB=$(~/.claude/skills/gstack/bin/gstack-config get gstack_contributor 2>/dev/null || true)
 _LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
@@ -194,14 +202,14 @@ branch name wherever the instructions say "the base branch."
 ## Adapt
 
 The steps below are the default happy path. Adapt when reality differs:
-- **No VERSION file?** Skip version bump entirely — not all projects use one.
-- **No CHANGELOG.md?** Skip changelog — or ask the user if they want one created.
-- **Monorepo?** Scope tests and diff to the relevant package, not the whole repo.
-- **No test suite?** Skip test step, but warn the user in the PR description.
+- **No VERSION file?** Skip version bump entirely. Also skip: version tag creation, CHANGELOG version header insertion. Note in PR description: "No version tracking in this project."
+- **No CHANGELOG.md?** Skip changelog update. Ask the user if they want one created, or note in PR description: "No changelog maintained."
+- **Monorepo?** Scope tests and diff to the relevant package, not the whole repo. Use package-specific test commands from CLAUDE.md.
+- **No test suite?** Skip test verification step AND test result references in the PR summary. Warn in PR description: "No automated tests — manual verification required."
 - **Non-standard git workflow?** Ask the user for their merge target instead of assuming main/master.
-- **CI handles tests?** Skip local test run if the user confirms CI will catch failures.
+- **CI handles tests?** Skip local test run if the user confirms CI will catch failures. Note in PR: "Tests delegated to CI."
 
-When in doubt, ask rather than fail. The steps are guidelines, not rails.
+When in doubt, ask rather than fail. The steps are guidelines, not rails. If you skip a step, check whether later steps reference its output — and skip or adapt those too.
 
 ---
 

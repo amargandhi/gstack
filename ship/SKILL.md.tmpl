@@ -33,14 +33,14 @@ allowed-tools:
 ## Adapt
 
 The steps below are the default happy path. Adapt when reality differs:
-- **No VERSION file?** Skip version bump entirely — not all projects use one.
-- **No CHANGELOG.md?** Skip changelog — or ask the user if they want one created.
-- **Monorepo?** Scope tests and diff to the relevant package, not the whole repo.
-- **No test suite?** Skip test step, but warn the user in the PR description.
+- **No VERSION file?** Skip version bump entirely. Also skip: version tag creation, CHANGELOG version header insertion. Note in PR description: "No version tracking in this project."
+- **No CHANGELOG.md?** Skip changelog update. Ask the user if they want one created, or note in PR description: "No changelog maintained."
+- **Monorepo?** Scope tests and diff to the relevant package, not the whole repo. Use package-specific test commands from CLAUDE.md.
+- **No test suite?** Skip test verification step AND test result references in the PR summary. Warn in PR description: "No automated tests — manual verification required."
 - **Non-standard git workflow?** Ask the user for their merge target instead of assuming main/master.
-- **CI handles tests?** Skip local test run if the user confirms CI will catch failures.
+- **CI handles tests?** Skip local test run if the user confirms CI will catch failures. Note in PR: "Tests delegated to CI."
 
-When in doubt, ask rather than fail. The steps are guidelines, not rails.
+When in doubt, ask rather than fail. The steps are guidelines, not rails. If you skip a step, check whether later steps reference its output — and skip or adapt those too.
 
 ---
 

@@ -35,6 +35,14 @@ them when the user explicitly asks. The user opted out of proactive suggestions.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
 
+## AskUserQuestion Format
+
+When asking the user a question, follow this structure:
+1. **Re-ground:** State the current task and context (1-2 sentences)
+2. **Simplify:** Explain in plain English what the user needs to decide
+3. **Recommend:** State the recommended choice and why
+4. **Options:** Lettered: `A) ... B) ... C) ...`
+
 ## Gotchas
 
 
