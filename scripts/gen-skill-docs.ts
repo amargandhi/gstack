@@ -26,8 +26,9 @@ interface TemplateContext {
 
 // ─── Placeholder Resolvers ──────────────────────────────────
 
-function generateCommandReference(_ctx: TemplateContext): string {
-  // Group commands by category
+// Full command reference — written to browse/reference/commands.md as a side-effect.
+// Skills get a slim pointer instead of the full table (progressive disclosure).
+function generateCommandReferenceFull(): string {
   const groups = new Map<string, Array<{ command: string; description: string; usage?: string }>>();
   for (const [cmd, meta] of Object.entries(COMMAND_DESCRIPTIONS)) {
     const list = groups.get(meta.category) || [];
@@ -35,21 +36,17 @@ function generateCommandReference(_ctx: TemplateContext): string {
     groups.set(meta.category, list);
   }
 
-  // Category display order
   const categoryOrder = [
     'Navigation', 'Reading', 'Interaction', 'Inspection',
     'Visual', 'Snapshot', 'Meta', 'Tabs', 'Server',
   ];
 
-  const sections: string[] = [];
+  const sections: string[] = ['# Browse Command Reference', '', '> Auto-generated from commands.ts — do not edit directly.', ''];
   for (const category of categoryOrder) {
     const commands = groups.get(category);
     if (!commands || commands.length === 0) continue;
-
-    // Sort alphabetically within category
     commands.sort((a, b) => a.command.localeCompare(b.command));
-
-    sections.push(`### ${category}`);
+    sections.push(`## ${category}`);
     sections.push('| Command | Description |');
     sections.push('|---------|-------------|');
     for (const cmd of commands) {
@@ -58,13 +55,18 @@ function generateCommandReference(_ctx: TemplateContext): string {
     }
     sections.push('');
   }
-
   return sections.join('\n').trimEnd();
 }
 
-function generateSnapshotFlags(_ctx: TemplateContext): string {
+function generateSnapshotFlagsFull(): string {
   const lines: string[] = [
+    '# Snapshot System Reference',
+    '',
+    '> Auto-generated from snapshot.ts — do not edit directly.',
+    '',
     'The snapshot is your primary tool for understanding and interacting with pages.',
+    '',
+    '## Flags',
     '',
     '```',
   ];
@@ -78,6 +80,8 @@ function generateSnapshotFlags(_ctx: TemplateContext): string {
   lines.push('');
   lines.push('All flags can be combined freely. `-o` only applies when `-a` is also used.');
   lines.push('Example: `$B snapshot -i -a -C -o /tmp/annotated.png`');
+  lines.push('');
+  lines.push('## Ref System');
   lines.push('');
   lines.push('**Ref numbering:** @e refs are assigned sequentially (@e1, @e2, ...) in tree order.');
   lines.push('@c refs from `-C` are numbered separately (@c1, @c2, ...).');
@@ -101,7 +105,37 @@ function generateSnapshotFlags(_ctx: TemplateContext): string {
   return lines.join('\n');
 }
 
+// Slim inline pointers — skills get these instead of full reference content.
+// Claude reads the full reference files on demand (progressive disclosure).
+function generateCommandReference(_ctx: TemplateContext): string {
+  return `## Command Reference
+
+For the full command table, read \`browse/reference/commands.md\` in the skill directory.
+
+**Quick reference — most-used commands:**
+- \`goto <url>\` — navigate
+- \`snapshot -i\` — see interactive elements with @refs
+- \`click @e3\` / \`fill @e4 "value"\` — interact by ref
+- \`screenshot [path]\` — capture page
+- \`console --errors\` — check for JS errors
+- \`text\` — read page content
+- \`is visible <sel>\` — assert element state
+- \`snapshot -D\` — diff against previous snapshot
+- \`chain\` — run multiple commands from JSON stdin
+- \`handoff\` / \`resume\` — user takeover for CAPTCHA/auth`;
+}
+
+function generateSnapshotFlags(_ctx: TemplateContext): string {
+  return `## Snapshot System
+
+For full flag reference and ref system details, read \`browse/reference/snapshot.md\` in the skill directory.
+
+**Quick reference:** \`$B snapshot -i\` (interactive elements), \`-D\` (diff), \`-a -o path\` (annotated screenshot), \`-C\` (cursor-interactive). Combine freely. Refs (\`@e1\`, \`@e2\`) work as selectors in any command. Refs invalidate on navigation — re-run \`snapshot\` after \`goto\`.`;
+}
+
 function generatePreambleEssential(ctx: TemplateContext): string {
+  // Cache-aligned: static content first, dynamic (skill-specific) content last.
+  // Per "Prompt Caching Is Everything": prefix match means order matters.
   return `## Preamble (run first)
 
 \`\`\`bash
@@ -115,6 +149,9 @@ _PROACTIVE=$(~/.claude/skills/gstack/bin/gstack-config get proactive 2>/dev/null
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "BRANCH: $_BRANCH"
 echo "PROACTIVE: $_PROACTIVE"
+\`\`\`
+
+\`\`\`bash
 mkdir -p ~/.gstack/analytics
 echo '{"skill":"${ctx.skillName}","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 \`\`\`
@@ -1009,8 +1046,12 @@ Parse the output. Find the most recent entry for each skill (plan-ceo-review, pl
 - If all reviews match the current HEAD, do not display any staleness notes`;
 }
 
-function generateTestBootstrap(_ctx: TemplateContext): string {
-  return `## Test Framework Bootstrap
+// Full test bootstrap — written to lib/test-bootstrap.md as a side-effect.
+// Skills get a slim detection block instead (progressive disclosure).
+function generateTestBootstrapFull(_ctx: TemplateContext): string {
+  return `# Test Framework Bootstrap
+
+> Auto-generated from gen-skill-docs.ts — do not edit directly.
 
 **Detect existing test framework and project runtime:**
 
@@ -1164,6 +1205,21 @@ Only commit if there are changes. Stage all bootstrap files (config, test direct
 ---`;
 }
 
+function generateTestBootstrap(_ctx: TemplateContext): string {
+  return `## Test Framework Bootstrap
+
+\`\`\`bash
+# Detect existing test framework
+ls jest.config.* vitest.config.* playwright.config.* .rspec pytest.ini pyproject.toml phpunit.xml 2>/dev/null
+ls -d test/ tests/ spec/ __tests__/ cypress/ e2e/ 2>/dev/null
+[ -f .gstack/no-test-bootstrap ] && echo "BOOTSTRAP_DECLINED"
+\`\`\`
+
+**If test framework detected:** Read 2-3 existing test files to learn conventions. Skip bootstrap.
+**If BOOTSTRAP_DECLINED:** Skip bootstrap.
+**If no tests found:** Read \`lib/test-bootstrap.md\` in the skill directory for the full bootstrap workflow (framework selection, installation, configuration, CI setup).`;
+}
+
 const RESOLVERS: Record<string, (ctx: TemplateContext) => string> = {
   COMMAND_REFERENCE: generateCommandReference,
   SNAPSHOT_FLAGS: generateSnapshotFlags,
@@ -1273,7 +1329,47 @@ for (const tmplPath of findTemplates()) {
   }
 }
 
+// ─── Reference Files (progressive disclosure) ───────────────
+// Write full reference content to files that skills point to.
+// Claude reads these on demand instead of getting them inline.
+
+const referenceFiles: Array<{ path: string; content: string; label: string }> = [
+  {
+    path: path.join(ROOT, 'browse', 'reference', 'commands.md'),
+    content: generateCommandReferenceFull(),
+    label: 'browse/reference/commands.md',
+  },
+  {
+    path: path.join(ROOT, 'browse', 'reference', 'snapshot.md'),
+    content: generateSnapshotFlagsFull(),
+    label: 'browse/reference/snapshot.md',
+  },
+  {
+    path: path.join(ROOT, 'lib', 'test-bootstrap.md'),
+    content: generateTestBootstrapFull({ skillName: '', tmplPath: '' }),
+    label: 'lib/test-bootstrap.md',
+  },
+];
+
+for (const ref of referenceFiles) {
+  const dir = path.dirname(ref.path);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  if (DRY_RUN) {
+    const existing = fs.existsSync(ref.path) ? fs.readFileSync(ref.path, 'utf-8') : '';
+    if (existing !== ref.content) {
+      console.log(`STALE: ${ref.label}`);
+      hasChanges = true;
+    } else {
+      console.log(`FRESH: ${ref.label}`);
+    }
+  } else {
+    fs.writeFileSync(ref.path, ref.content);
+    console.log(`GENERATED: ${ref.label}`);
+  }
+}
+
 if (DRY_RUN && hasChanges) {
-  console.error('\nGenerated SKILL.md files are stale. Run: bun run gen:skill-docs');
+  console.error('\nGenerated files are stale. Run: bun run gen:skill-docs');
   process.exit(1);
 }

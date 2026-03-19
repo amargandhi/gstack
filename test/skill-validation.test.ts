@@ -900,30 +900,22 @@ describe('gstack-slug', () => {
 // --- Test Bootstrap validation ---
 
 describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
-  test('TEST_BOOTSTRAP resolver produces valid content', () => {
-    const qaContent = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
-    expect(qaContent).toContain('Test Framework Bootstrap');
-    expect(qaContent).toContain('RUNTIME:ruby');
-    expect(qaContent).toContain('RUNTIME:node');
-    expect(qaContent).toContain('RUNTIME:python');
-    expect(qaContent).toContain('no-test-bootstrap');
-    expect(qaContent).toContain('BOOTSTRAP_DECLINED');
-  });
+  // Inline skill files get a slim detection block + pointer to reference file.
+  // Full bootstrap content lives in lib/test-bootstrap.md (progressive disclosure).
 
-  test('TEST_BOOTSTRAP appears in qa/SKILL.md', () => {
+  test('TEST_BOOTSTRAP slim pointer in qa/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Test Framework Bootstrap');
-    expect(content).toContain('TESTING.md');
-    expect(content).toContain('CLAUDE.md');
+    expect(content).toContain('BOOTSTRAP_DECLINED');
+    expect(content).toContain('lib/test-bootstrap.md');
   });
 
-  test('TEST_BOOTSTRAP appears in ship/SKILL.md', () => {
+  test('TEST_BOOTSTRAP slim pointer in ship/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Test Framework Bootstrap');
-    expect(content).toContain('Step 2.5');
   });
 
-  test('TEST_BOOTSTRAP appears in design-review/SKILL.md', () => {
+  test('TEST_BOOTSTRAP slim pointer in design-review/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Test Framework Bootstrap');
   });
@@ -931,36 +923,25 @@ describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
   test('TEST_BOOTSTRAP does NOT appear in qa-only/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa-only', 'SKILL.md'), 'utf-8');
     expect(content).not.toContain('Test Framework Bootstrap');
-    // But should have the recommendation note
     expect(content).toContain('No test framework detected');
     expect(content).toContain('Run `/qa` to bootstrap');
   });
 
-  test('bootstrap includes framework knowledge table', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+  // Full bootstrap content lives in the reference file
+  test('lib/test-bootstrap.md has full framework knowledge', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'lib', 'test-bootstrap.md'), 'utf-8');
+    expect(content).toContain('RUNTIME:ruby');
+    expect(content).toContain('RUNTIME:node');
+    expect(content).toContain('RUNTIME:python');
     expect(content).toContain('vitest');
     expect(content).toContain('minitest');
     expect(content).toContain('pytest');
     expect(content).toContain('cargo test');
     expect(content).toContain('phpunit');
     expect(content).toContain('ExUnit');
-  });
-
-  test('bootstrap includes CI/CD pipeline generation', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
     expect(content).toContain('.github/workflows/test.yml');
     expect(content).toContain('GitHub Actions');
-  });
-
-  test('bootstrap includes first real tests step', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
     expect(content).toContain('First real tests');
-    expect(content).toContain('git log --since=30.days');
-    expect(content).toContain('Prioritize by risk');
-  });
-
-  test('bootstrap includes vibe coding philosophy', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
     expect(content).toContain('vibe coding');
     expect(content).toContain('100% test coverage');
   });

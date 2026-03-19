@@ -7,16 +7,19 @@ import * as path from 'path';
 const ROOT = path.resolve(import.meta.dir, '..');
 
 describe('gen-skill-docs', () => {
-  test('generated SKILL.md contains all command categories', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
+  // Command reference now lives in browse/reference/commands.md (progressive disclosure).
+  // Skills get a slim pointer; full content is in the reference file.
+
+  test('browse/reference/commands.md contains all command categories', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'browse', 'reference', 'commands.md'), 'utf-8');
     const categories = new Set(Object.values(COMMAND_DESCRIPTIONS).map(d => d.category));
     for (const cat of categories) {
-      expect(content).toContain(`### ${cat}`);
+      expect(content).toContain(`## ${cat}`);
     }
   });
 
-  test('generated SKILL.md contains all commands', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
+  test('browse/reference/commands.md contains all commands', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'browse', 'reference', 'commands.md'), 'utf-8');
     for (const [cmd, meta] of Object.entries(COMMAND_DESCRIPTIONS)) {
       const display = meta.usage || cmd;
       expect(content).toContain(display);
@@ -24,9 +27,8 @@ describe('gen-skill-docs', () => {
   });
 
   test('command table is sorted alphabetically within categories', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
-    // Extract command names from the Navigation section as a test
-    const navSection = content.match(/### Navigation\n\|.*\n\|.*\n([\s\S]*?)(?=\n###|\n## )/);
+    const content = fs.readFileSync(path.join(ROOT, 'browse', 'reference', 'commands.md'), 'utf-8');
+    const navSection = content.match(/## Navigation\n\|.*\n\|.*\n([\s\S]*?)(?=\n##|\n$)/);
     expect(navSection).not.toBeNull();
     const rows = navSection![1].trim().split('\n');
     const commands = rows.map(r => {
@@ -35,6 +37,12 @@ describe('gen-skill-docs', () => {
     }).filter(Boolean);
     const sorted = [...commands].sort();
     expect(commands).toEqual(sorted);
+  });
+
+  test('SKILL.md has slim pointer to command reference', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
+    expect(content).toContain('browse/reference/commands.md');
+    expect(content).toContain('Command Reference');
   });
 
   test('generated header is present in SKILL.md', () => {
@@ -48,12 +56,18 @@ describe('gen-skill-docs', () => {
     expect(content).toContain('AUTO-GENERATED from SKILL.md.tmpl');
   });
 
-  test('snapshot flags section contains all flags', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
+  // Snapshot flags now live in browse/reference/snapshot.md (progressive disclosure).
+  test('browse/reference/snapshot.md contains all flags', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'browse', 'reference', 'snapshot.md'), 'utf-8');
     for (const flag of SNAPSHOT_FLAGS) {
       expect(content).toContain(flag.short);
       expect(content).toContain(flag.description);
     }
+  });
+
+  test('SKILL.md has slim pointer to snapshot reference', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
+    expect(content).toContain('browse/reference/snapshot.md');
   });
 
   // All skills that must have templates — single source of truth
@@ -272,8 +286,8 @@ describe('BASE_BRANCH_DETECT resolver', () => {
  */
 describe('description quality evals', () => {
   // Regression: snapshot flags lost value hints (-d <N>, -s <sel>, -o <path>)
-  test('snapshot flags with values include value hints in output', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
+  test('snapshot flags with values include value hints in reference file', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'browse', 'reference', 'snapshot.md'), 'utf-8');
     for (const flag of SNAPSHOT_FLAGS) {
       if (flag.takesValue) {
         expect(flag.valueHint).toBeDefined();
