@@ -2,12 +2,9 @@
 name: browse
 version: 1.1.0
 description: |
-  Fast headless browser for QA testing and site dogfooding. Navigate any URL, interact with
-  elements, verify page state, diff before/after actions, take annotated screenshots, check
-  responsive layouts, test forms and uploads, handle dialogs, and assert element states.
-  ~100ms per command. Use when you need to test a feature, verify a deployment, dogfood a
-  user flow, or file a bug with evidence. Use when asked to "open in browser", "test the
-  site", "take a screenshot", or "dogfood this".
+  Use when you need a headless browser to test pages, take screenshots, interact with
+  elements, or verify deployments. ~100ms per command. Triggers on: 'open in browser',
+  'test the site', 'take a screenshot', 'check the page', 'dogfood this'.
 allowed-tools:
   - Bash
   - Read
@@ -26,13 +23,10 @@ mkdir -p ~/.gstack/sessions
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
 find ~/.gstack/sessions -mmin +120 -type f -delete 2>/dev/null || true
-_CONTRIB=$(~/.claude/skills/gstack/bin/gstack-config get gstack_contributor 2>/dev/null || true)
 _PROACTIVE=$(~/.claude/skills/gstack/bin/gstack-config get proactive 2>/dev/null || echo "true")
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "BRANCH: $_BRANCH"
 echo "PROACTIVE: $_PROACTIVE"
-_LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
-echo "LAKE_INTRO: $_LAKE_SEEN"
 mkdir -p ~/.gstack/analytics
 echo '{"skill":"browse","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 ```
@@ -41,6 +35,12 @@ If `PROACTIVE` is `"false"`, do not proactively suggest gstack skills — only i
 them when the user explicitly asks. The user opted out of proactive suggestions.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
+
+```bash
+_CONTRIB=$(~/.claude/skills/gstack/bin/gstack-config get gstack_contributor 2>/dev/null || true)
+_LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
+echo "LAKE_INTRO: $_LAKE_SEEN"
+```
 
 If `LAKE_INTRO` is `no`: Before continuing, introduce the Completeness Principle.
 Tell the user: "gstack follows the **Boil the Lake** principle — always do the complete
@@ -90,6 +90,11 @@ AI-assisted coding makes the marginal cost of completeness near-zero. When you p
 - BAD: "We can skip edge case handling to save time." (Edge case handling costs minutes with CC.)
 - BAD: "Let's defer test coverage to a follow-up PR." (Tests are the cheapest lake to boil.)
 - BAD: Quoting only human-team effort: "This would take 2 weeks." (Say: "2 weeks human / ~1 hour CC.")
+
+**Calibration — when NOT to boil the lake:**
+- If the user explicitly says "quick fix", "just the happy path", or "good enough for now" — respect that. The Completeness Principle applies to tasks the user has committed to completing fully, not every interaction.
+- Don't expand scope: "complete" means finishing what was asked, not adding unrequested features or refactoring adjacent code.
+- Don't gold-plate: 100% test coverage of a trivial utility function is not "completeness" — it's busywork. Apply judgment.
 
 ## Contributor Mode
 
@@ -176,6 +181,18 @@ If `NEEDS_SETUP`:
 1. Tell the user: "gstack browse needs a one-time build (~10 seconds). OK to proceed?" Then STOP and wait.
 2. Run: `cd <SKILL_DIR> && ./setup`
 3. If `bun` is not installed: `curl -fsSL https://bun.sh/install | bash`
+
+## Gotchas
+
+- After `$B screenshot`, always use Read on the PNG file — without this, screenshots are invisible to the user
+- Use `snapshot -i` before interacting — don't guess CSS selectors
+- Refs are invalidated on navigation — run `snapshot` again after `goto`
+- For CAPTCHAs and 2FA, use `handoff` to let the user solve it manually, then `resume`
+- Never use `mcp__claude-in-chrome__*` tools — they are slow and unreliable
+
+
+
+---
 
 ## Core QA Patterns
 

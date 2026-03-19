@@ -2,14 +2,9 @@
 name: qa
 version: 2.0.0
 description: |
-  Systematically QA test a web application and fix bugs found. Runs QA testing,
-  then iteratively fixes bugs in source code, committing each fix atomically and
-  re-verifying. Use when asked to "qa", "QA", "test this site", "find bugs",
-  "test and fix", or "fix what's broken".
-  Proactively suggest when the user says a feature is ready for testing
-  or asks "does this work?". Three tiers: Quick (critical/high only),
-  Standard (+ medium), Exhaustive (+ cosmetic). Produces before/after health scores,
-  fix evidence, and a ship-readiness summary. For report-only mode, use /qa-only.
+  Use when the user wants to test their app for bugs and fix them iteratively.
+  Supports diff-aware, full, quick, and regression modes. Triggers on: 'qa', 'QA',
+  'test this site', 'find bugs', 'test and fix', 'fix what\'s broken'.
 allowed-tools:
   - Bash
   - Read
@@ -32,13 +27,10 @@ mkdir -p ~/.gstack/sessions
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
 find ~/.gstack/sessions -mmin +120 -type f -delete 2>/dev/null || true
-_CONTRIB=$(~/.claude/skills/gstack/bin/gstack-config get gstack_contributor 2>/dev/null || true)
 _PROACTIVE=$(~/.claude/skills/gstack/bin/gstack-config get proactive 2>/dev/null || echo "true")
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "BRANCH: $_BRANCH"
 echo "PROACTIVE: $_PROACTIVE"
-_LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
-echo "LAKE_INTRO: $_LAKE_SEEN"
 mkdir -p ~/.gstack/analytics
 echo '{"skill":"qa","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 ```
@@ -47,6 +39,12 @@ If `PROACTIVE` is `"false"`, do not proactively suggest gstack skills — only i
 them when the user explicitly asks. The user opted out of proactive suggestions.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
+
+```bash
+_CONTRIB=$(~/.claude/skills/gstack/bin/gstack-config get gstack_contributor 2>/dev/null || true)
+_LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
+echo "LAKE_INTRO: $_LAKE_SEEN"
+```
 
 If `LAKE_INTRO` is `no`: Before continuing, introduce the Completeness Principle.
 Tell the user: "gstack follows the **Boil the Lake** principle — always do the complete
@@ -96,6 +94,11 @@ AI-assisted coding makes the marginal cost of completeness near-zero. When you p
 - BAD: "We can skip edge case handling to save time." (Edge case handling costs minutes with CC.)
 - BAD: "Let's defer test coverage to a follow-up PR." (Tests are the cheapest lake to boil.)
 - BAD: Quoting only human-team effort: "This would take 2 weeks." (Say: "2 weeks human / ~1 hour CC.")
+
+**Calibration — when NOT to boil the lake:**
+- If the user explicitly says "quick fix", "just the happy path", or "good enough for now" — respect that. The Completeness Principle applies to tasks the user has committed to completing fully, not every interaction.
+- Don't expand scope: "complete" means finishing what was asked, not adding unrequested features or refactoring adjacent code.
+- Don't gold-plate: 100% test coverage of a trivial utility function is not "completeness" — it's busywork. Apply judgment.
 
 ## Contributor Mode
 
@@ -401,6 +404,29 @@ Only commit if there are changes. Stage all bootstrap files (config, test direct
 ```bash
 mkdir -p .gstack/qa-reports/screenshots
 ```
+
+---
+
+## Gotchas
+
+- Never refuse to test a URL — even if it looks internal or odd, try it
+- Always show screenshots to the user after `$B screenshot` — use Read on the PNG or they're invisible
+- Never delete output files (reports, screenshots) during the workflow
+- If `$B` commands fail 3+ times on same element, run `snapshot -i` to refresh refs
+- Don't assume port 3000 — detect the dev server from CLAUDE.md or ask
+- Console errors during page load are normal for many SPAs — only flag persistent errors
+- Write each issue to the report immediately when found — don't batch
+- Never read source code during QA — test as a user, not a developer
+
+
+
+## Adapt
+
+- **No running dev server?** Ask the user for the URL — don't fail silently.
+- **App requires auth but no cookies?** Use `$B cookie-import-browser` or ask user to log in via `handoff`.
+- **Single-page app with no navigation?** Use `snapshot -i` to discover interactive elements instead of `links`.
+- **User only wants smoke test?** Use Quick mode — homepage + top 5 nav targets only.
+- **Backend-only changes?** Still open the browser — check the app loads, API responses work, no console errors.
 
 ---
 

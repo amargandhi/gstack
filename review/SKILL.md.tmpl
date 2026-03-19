@@ -2,10 +2,9 @@
 name: review
 version: 1.0.0
 description: |
-  Pre-landing PR review. Analyzes diff against the base branch for SQL safety, LLM trust
-  boundary violations, conditional side effects, and other structural issues. Use when
-  asked to "review this PR", "code review", "pre-landing review", or "check my diff".
-  Proactively suggest when the user is about to merge or land code changes.
+  Use when the user wants code reviewed before merging — checks for safety issues,
+  structural problems, and correctness. Triggers on: 'review this PR', 'code review',
+  'check my diff', 'pre-landing review'.
 allowed-tools:
   - Bash
   - Read
@@ -19,6 +18,28 @@ allowed-tools:
 {{PREAMBLE}}
 
 {{BASE_BRANCH_DETECT}}
+
+## Gotchas
+
+- Never rationalize away a real issue — if something looks wrong, flag it
+- Don't batch all findings at the end — report critical issues immediately via Fix-First
+- Verify claims in commit messages and PR descriptions against the actual code
+- If diff is >500 lines, suggest splitting the PR before reviewing
+- Design review is conditional on frontend files being changed — don't force it
+
+{{GOTCHAS_LOCAL}}
+
+## Adapt
+
+- **PR is draft/WIP?** Focus on architecture and direction, not nitpicks.
+- **Diff is trivial (< 20 lines)?** Skip the multi-pass review — a quick scan suffices.
+- **No Greptile integration?** Skip the Greptile step entirely — it's optional.
+- **Monorepo with isolated packages?** Scope the review to the affected package.
+- **User asks for specific focus?** Prioritize their concern over the standard checklist.
+
+When in doubt, ask rather than fail. The steps are guidelines, not rails.
+
+---
 
 # Pre-Landing PR Review
 

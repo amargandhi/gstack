@@ -2,11 +2,9 @@
 name: document-release
 version: 1.0.0
 description: |
-  Post-ship documentation update. Reads all project docs, cross-references the
-  diff, updates README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md to match what shipped,
-  polishes CHANGELOG voice, cleans up TODOS, and optionally bumps VERSION. Use when
-  asked to "update the docs", "sync documentation", or "post-ship docs".
-  Proactively suggest after a PR is merged or code is shipped.
+  Use after shipping to update documentation — README, CHANGELOG, API docs,
+  migration guides. Triggers on: 'update docs', 'document release', 'post-ship docs',
+  'update the changelog', 'document what we shipped'.
 allowed-tools:
   - Bash
   - Read
@@ -20,6 +18,12 @@ allowed-tools:
 {{PREAMBLE}}
 
 {{BASE_BRANCH_DETECT}}
+
+## Gotchas
+
+{{GOTCHAS_LOCAL}}
+
+---
 
 # Document Release: Post-Ship Documentation Update
 

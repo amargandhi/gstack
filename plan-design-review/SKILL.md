@@ -2,13 +2,10 @@
 name: plan-design-review
 version: 2.0.0
 description: |
-  Designer's eye plan review — interactive, like CEO and Eng review.
-  Rates each design dimension 0-10, explains what would make it a 10,
-  then fixes the plan to get there. Works in plan mode. For live site
-  visual audits, use /design-review. Use when asked to "review the design plan"
-  or "design critique".
-  Proactively suggest when the user has a plan with UI/UX components that
-  should be reviewed before implementation.
+  Use when the user wants design feedback on a plan — visual hierarchy,
+  typography, spacing, color, interaction states, and responsive considerations.
+  Triggers on: 'design review plan', 'visual review', 'design audit plan',
+  'plan design review'.
 allowed-tools:
   - Read
   - Edit
@@ -29,13 +26,10 @@ mkdir -p ~/.gstack/sessions
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
 find ~/.gstack/sessions -mmin +120 -type f -delete 2>/dev/null || true
-_CONTRIB=$(~/.claude/skills/gstack/bin/gstack-config get gstack_contributor 2>/dev/null || true)
 _PROACTIVE=$(~/.claude/skills/gstack/bin/gstack-config get proactive 2>/dev/null || echo "true")
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "BRANCH: $_BRANCH"
 echo "PROACTIVE: $_PROACTIVE"
-_LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
-echo "LAKE_INTRO: $_LAKE_SEEN"
 mkdir -p ~/.gstack/analytics
 echo '{"skill":"plan-design-review","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 ```
@@ -44,6 +38,12 @@ If `PROACTIVE` is `"false"`, do not proactively suggest gstack skills — only i
 them when the user explicitly asks. The user opted out of proactive suggestions.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
+
+```bash
+_CONTRIB=$(~/.claude/skills/gstack/bin/gstack-config get gstack_contributor 2>/dev/null || true)
+_LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
+echo "LAKE_INTRO: $_LAKE_SEEN"
+```
 
 If `LAKE_INTRO` is `no`: Before continuing, introduce the Completeness Principle.
 Tell the user: "gstack follows the **Boil the Lake** principle — always do the complete
@@ -93,6 +93,11 @@ AI-assisted coding makes the marginal cost of completeness near-zero. When you p
 - BAD: "We can skip edge case handling to save time." (Edge case handling costs minutes with CC.)
 - BAD: "Let's defer test coverage to a follow-up PR." (Tests are the cheapest lake to boil.)
 - BAD: Quoting only human-team effort: "This would take 2 weeks." (Say: "2 weeks human / ~1 hour CC.")
+
+**Calibration — when NOT to boil the lake:**
+- If the user explicitly says "quick fix", "just the happy path", or "good enough for now" — respect that. The Completeness Principle applies to tasks the user has committed to completing fully, not every interaction.
+- Don't expand scope: "complete" means finishing what was asked, not adding unrequested features or refactoring adjacent code.
+- Don't gold-plate: 100% test coverage of a trivial utility function is not "completeness" — it's busywork. Apply judgment.
 
 ## Contributor Mode
 
@@ -172,6 +177,12 @@ Determine which branch this PR targets. Use the result as "the base branch" in a
 Print the detected base branch name. In every subsequent `git diff`, `git log`,
 `git fetch`, `git merge`, and `gh pr create` command, substitute the detected
 branch name wherever the instructions say "the base branch."
+
+---
+
+## Gotchas
+
+
 
 ---
 

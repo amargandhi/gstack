@@ -2,8 +2,9 @@
 name: ship
 version: 1.0.0
 description: |
-  Ship workflow: detect + merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR. Use when asked to "ship", "deploy", "push to main", "create a PR", or "merge and push".
-  Proactively suggest when the user says code is ready or asks about deploying.
+  Use when the user is ready to ship — syncs with base branch, runs tests, reviews
+  diff, bumps version, updates changelog, and creates a PR. Triggers on: 'ship',
+  'deploy', 'create a PR', 'push to main', 'merge and push'.
 allowed-tools:
   - Bash
   - Read
@@ -18,6 +19,30 @@ allowed-tools:
 {{PREAMBLE}}
 
 {{BASE_BRANCH_DETECT}}
+
+## Gotchas
+
+- Never clobber existing CHANGELOG entries — append, don't overwrite
+- Never bump VERSION silently — always confirm with user
+- If tests fail, stop and fix — don't ship broken code
+- Check for uncommitted changes before starting the ship workflow
+- If no VERSION file exists, skip version bump entirely
+
+{{GOTCHAS_LOCAL}}
+
+## Adapt
+
+The steps below are the default happy path. Adapt when reality differs:
+- **No VERSION file?** Skip version bump entirely — not all projects use one.
+- **No CHANGELOG.md?** Skip changelog — or ask the user if they want one created.
+- **Monorepo?** Scope tests and diff to the relevant package, not the whole repo.
+- **No test suite?** Skip test step, but warn the user in the PR description.
+- **Non-standard git workflow?** Ask the user for their merge target instead of assuming main/master.
+- **CI handles tests?** Skip local test run if the user confirms CI will catch failures.
+
+When in doubt, ask rather than fail. The steps are guidelines, not rails.
+
+---
 
 # Ship: Fully Automated Ship Workflow
 

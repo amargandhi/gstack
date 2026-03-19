@@ -2,12 +2,10 @@
 name: investigate
 version: 1.0.0
 description: |
-  Systematic debugging with root cause investigation. Four phases: investigate,
-  analyze, hypothesize, implement. Iron Law: no fixes without root cause.
-  Use when asked to "debug this", "fix this bug", "why is this broken",
-  "investigate this error", or "root cause analysis".
-  Proactively suggest when the user reports errors, unexpected behavior, or
-  is troubleshooting why something stopped working.
+  Use when the user encounters a bug, error, or unexpected behavior and needs to
+  find the root cause before fixing. Iron Law: no fixes without root cause.
+  Triggers on: 'debug this', 'why is this broken', 'investigate', 'root cause',
+  'fix this bug'.
 allowed-tools:
   - Bash
   - Read
@@ -31,6 +29,18 @@ hooks:
 ---
 
 {{PREAMBLE}}
+
+## Gotchas
+
+- Never propose a fix before tracing the full data flow — root cause first
+- If each fix reveals a new problem, stop — you're chasing symptoms, not the cause
+- Don't say "quick fix for now" — temporary fixes become permanent
+- After 3 failed fix attempts, STOP and escalate
+- Auto-freezes edits to the debug directory — this is intentional scope protection
+
+{{GOTCHAS_LOCAL}}
+
+---
 
 # Systematic Debugging
 

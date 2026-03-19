@@ -2,11 +2,9 @@
 name: codex
 version: 1.0.0
 description: |
-  OpenAI Codex CLI wrapper — three modes. Code review: independent diff review via
-  codex review with pass/fail gate. Challenge: adversarial mode that tries to break
-  your code. Consult: ask codex anything with session continuity for follow-ups.
-  The "200 IQ autistic developer" second opinion. Use when asked to "codex review",
-  "codex challenge", "ask codex", "second opinion", or "consult codex".
+  Use when the user wants a second opinion or adversarial code review from OpenAI
+  Codex CLI — runs independently for fresh-eyes analysis. Triggers on: 'codex review',
+  'second opinion', 'adversarial review', 'get another perspective'.
 allowed-tools:
   - Bash
   - Read
@@ -19,6 +17,12 @@ allowed-tools:
 {{PREAMBLE}}
 
 {{BASE_BRANCH_DETECT}}
+
+## Gotchas
+
+{{GOTCHAS_LOCAL}}
+
+---
 
 # /codex — Multi-AI Second Opinion
 

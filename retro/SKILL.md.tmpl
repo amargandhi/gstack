@@ -2,11 +2,10 @@
 name: retro
 version: 2.0.0
 description: |
-  Weekly engineering retrospective. Analyzes commit history, work patterns,
-  and code quality metrics with persistent history and trend tracking.
-  Team-aware: breaks down per-person contributions with praise and growth areas.
-  Use when asked to "weekly retro", "what did we ship", or "engineering retrospective".
-  Proactively suggest at the end of a work week or sprint.
+  Use when the user wants to reflect on recent work — analyzes commit history,
+  work patterns, code quality metrics with per-person breakdown. Triggers on:
+  'weekly retro', 'what did we ship', 'retrospective', 'week in review',
+  'engineering retrospective'.
 allowed-tools:
   - Bash
   - Read
@@ -16,6 +15,25 @@ allowed-tools:
 ---
 
 {{PREAMBLE}}
+
+## Gotchas
+
+- Never compare teammates negatively — focus on patterns, not people
+- No generic praise ("great job team!") — be specific or say nothing
+- Don't fabricate metrics if git history is unavailable — say so
+- Tone: direct, data-driven, constructive. Not coddling, not harsh.
+
+{{GOTCHAS_LOCAL}}
+
+## Adapt
+
+- **No git history available?** Skip metric collection, focus on qualitative analysis from the user.
+- **Solo developer?** Skip team breakdown, focus on personal patterns and velocity.
+- **Short time period?** Adjust lookback window — not everything needs a full week.
+- **No previous retros?** Skip week-over-week comparison, establish baseline instead.
+- **User only wants highlights?** Skip the full 14-step analysis, give a 3-bullet summary.
+
+---
 
 ## Detect default branch
 

@@ -526,7 +526,6 @@ describe('v0.4.1 preamble features', () => {
   const skillsWithPreamble = [
     'SKILL.md', 'browse/SKILL.md', 'qa/SKILL.md',
     'qa-only/SKILL.md',
-    'setup-browser-cookies/SKILL.md',
     'ship/SKILL.md', 'review/SKILL.md',
     'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
     'retro/SKILL.md',
@@ -660,7 +659,6 @@ describe('Contributor mode preamble structure', () => {
   const skillsWithPreamble = [
     'SKILL.md', 'browse/SKILL.md', 'qa/SKILL.md',
     'qa-only/SKILL.md',
-    'setup-browser-cookies/SKILL.md',
     'ship/SKILL.md', 'review/SKILL.md',
     'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
     'retro/SKILL.md',
@@ -748,7 +746,6 @@ describe('Completeness Principle in generated SKILL.md files', () => {
   const skillsWithPreamble = [
     'SKILL.md', 'browse/SKILL.md', 'qa/SKILL.md',
     'qa-only/SKILL.md',
-    'setup-browser-cookies/SKILL.md',
     'ship/SKILL.md', 'review/SKILL.md',
     'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
     'retro/SKILL.md',
@@ -1235,25 +1232,11 @@ describe('Skill trigger phrases', () => {
       // Extract description from frontmatter
       const frontmatterEnd = content.indexOf('---', 4);
       const frontmatter = content.slice(0, frontmatterEnd);
-      expect(frontmatter).toMatch(/Use when/i);
+      expect(frontmatter).toMatch(/Use (when|after|to) /i);
     });
   }
 
-  // Skills with proactive triggers should have "Proactively suggest" in description
-  const SKILLS_REQUIRING_PROACTIVE = [
-    'qa', 'qa-only', 'ship', 'review', 'investigate', 'office-hours',
-    'plan-ceo-review', 'plan-eng-review', 'plan-design-review',
-    'design-review', 'design-consultation', 'retro', 'document-release',
-  ];
-
-  for (const skill of SKILLS_REQUIRING_PROACTIVE) {
-    test(`${skill}/SKILL.md has "Proactively suggest" phrase`, () => {
-      const skillPath = path.join(ROOT, skill, 'SKILL.md');
-      if (!fs.existsSync(skillPath)) return;
-      const content = fs.readFileSync(skillPath, 'utf-8');
-      const frontmatterEnd = content.indexOf('---', 4);
-      const frontmatter = content.slice(0, frontmatterEnd);
-      expect(frontmatter).toMatch(/Proactively suggest/i);
-    });
-  }
+  // Proactive skill routing is now centralized in root SKILL.md body (Skill Router section),
+  // not in individual skill description frontmatter. Individual descriptions focus on
+  // trigger conditions per Anthropic best practices ("Use when X. Triggers on: Y").
 });

@@ -2,17 +2,22 @@
 name: setup-browser-cookies
 version: 1.0.0
 description: |
-  Import cookies from your real browser (Comet, Chrome, Arc, Brave, Edge) into the
-  headless browse session. Opens an interactive picker UI where you select which
-  cookie domains to import. Use before QA testing authenticated pages. Use when asked
-  to "import cookies", "login to the site", or "authenticate the browser".
+  Use when the user needs to import browser cookies for authenticated testing —
+  imports from Chrome, Arc, Brave, Edge, or Comet. Triggers on: 'import cookies',
+  'setup cookies', 'browser cookies', 'authenticate browser', 'login to site'.
 allowed-tools:
   - Bash
   - Read
   - AskUserQuestion
 ---
 
-{{PREAMBLE}}
+{{PREAMBLE_ESSENTIAL}}
+
+## Gotchas
+
+{{GOTCHAS_LOCAL}}
+
+---
 
 # Setup Browser Cookies
 
