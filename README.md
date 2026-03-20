@@ -72,9 +72,27 @@ git clone https://github.com/amargandhi/gstack.git ~/.claude/skills/gstack
 cd ~/.claude/skills/gstack && ./setup
 ```
 
+### Codex, Gemini CLI, or Cursor
+
+gstack works on any agent that supports the [SKILL.md standard](https://github.com/anthropics/claude-code). Skills live in `.agents/skills/` and are discovered automatically.
+
+```bash
+git clone https://github.com/amargandhi/gstack.git ~/.codex/skills/gstack
+cd ~/.codex/skills/gstack && ./setup --host codex
+```
+
+Or let setup auto-detect which agents you have installed:
+
+```bash
+git clone https://github.com/amargandhi/gstack.git ~/gstack
+cd ~/gstack && ./setup --host auto
+```
+
+This installs to `~/.claude/skills/gstack` and/or `~/.codex/skills/gstack` depending on what's available. All 22 skills work across all supported agents. Hook-based safety skills (careful, freeze, guard) use inline safety advisory prose on non-Claude hosts.
+
 Then add a gstack section to your project's CLAUDE.md:
 
-```markdown
+```
 ## gstack
 Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__* tools.
 Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review,
