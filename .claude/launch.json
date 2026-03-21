@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "browse-dev",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev"],
+      "port": 10100
+    },
+    {
+      "name": "browse-server",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "server"],
+      "port": 10200
+    }
+  ]
+}

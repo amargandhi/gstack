@@ -223,6 +223,10 @@ describe('Update check preamble', () => {
     'design-review/SKILL.md',
     'design-consultation/SKILL.md',
     'document-release/SKILL.md',
+    'canary/SKILL.md',
+    'benchmark/SKILL.md',
+    'land-and-deploy/SKILL.md',
+    'setup-deploy/SKILL.md',
   ];
 
   for (const skill of skillsWithUpdateCheck) {
@@ -534,6 +538,10 @@ describe('v0.4.1 preamble features', () => {
     'design-review/SKILL.md',
     'design-consultation/SKILL.md',
     'document-release/SKILL.md',
+    'canary/SKILL.md',
+    'benchmark/SKILL.md',
+    'land-and-deploy/SKILL.md',
+    'setup-deploy/SKILL.md',
   ];
 
   for (const skill of skillsWithPreamble) {
@@ -719,6 +727,10 @@ describe('Contributor mode preamble structure', () => {
     'design-review/SKILL.md',
     'design-consultation/SKILL.md',
     'document-release/SKILL.md',
+    'canary/SKILL.md',
+    'benchmark/SKILL.md',
+    'land-and-deploy/SKILL.md',
+    'setup-deploy/SKILL.md',
   ];
 
   for (const skill of skillsWithPreamble) {
@@ -969,22 +981,23 @@ describe('gstack-slug', () => {
 // --- Test Bootstrap validation ---
 
 describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
-  // Inline skill files get a slim detection block + pointer to reference file.
-  // Full bootstrap content lives in lib/test-bootstrap.md (progressive disclosure).
+  // Test bootstrap content is inlined in skill files.
+  // Includes Swift/Xcode detection for compatibility with Swift skills.
 
-  test('TEST_BOOTSTRAP slim pointer in qa/SKILL.md', () => {
+  test('TEST_BOOTSTRAP content in qa/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Test Framework Bootstrap');
     expect(content).toContain('BOOTSTRAP_DECLINED');
-    expect(content).toContain('lib/test-bootstrap.md');
+    expect(content).toContain('RUNTIME:swift');
+    expect(content).toContain('SWIFT_TESTS_FOUND');
   });
 
-  test('TEST_BOOTSTRAP slim pointer in ship/SKILL.md', () => {
+  test('TEST_BOOTSTRAP content in ship/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Test Framework Bootstrap');
   });
 
-  test('TEST_BOOTSTRAP slim pointer in design-review/SKILL.md', () => {
+  test('TEST_BOOTSTRAP content in design-review/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Test Framework Bootstrap');
   });
@@ -996,9 +1009,8 @@ describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
     expect(content).toContain('Run `/qa` to bootstrap');
   });
 
-  // Full bootstrap content lives in the reference file
-  test('lib/test-bootstrap.md has full framework knowledge', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'lib', 'test-bootstrap.md'), 'utf-8');
+  test('TEST_BOOTSTRAP has full framework knowledge inline', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
     expect(content).toContain('RUNTIME:ruby');
     expect(content).toContain('RUNTIME:node');
     expect(content).toContain('RUNTIME:python');
@@ -1234,18 +1246,49 @@ describe('Codex skill', () => {
     expect(content).toContain('mktemp');
   });
 
-  test('codex integration in /review offers second opinion', () => {
+  test('adversarial review in /review auto-scales by diff size', () => {
     const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Codex second opinion');
-    expect(content).toContain('codex review');
-    expect(content).toContain('adversarial');
+    expect(content).toContain('Adversarial review (auto-scaled)');
+    // Diff size thresholds
+    expect(content).toContain('< 50');
+    expect(content).toContain('50–199');
+    expect(content).toContain('200+');
+    // All three tiers present
+    expect(content).toContain('Small');
+    expect(content).toContain('Medium tier');
+    expect(content).toContain('Large tier');
+    // Claude adversarial subagent dispatch
+    expect(content).toContain('Agent tool');
+    expect(content).toContain('FIXABLE');
+    expect(content).toContain('INVESTIGATE');
+    // Codex fallback logic
+    expect(content).toContain('CODEX_NOT_AVAILABLE');
+    expect(content).toContain('fall back to the Claude adversarial subagent');
+    // Review log uses new skill name
+    expect(content).toContain('adversarial-review');
+    expect(content).toContain('xhigh');
+    expect(content).toContain('ADVERSARIAL REVIEW SYNTHESIS');
   });
 
-  test('codex integration in /ship offers review gate', () => {
+  test('adversarial review in /ship auto-scales by diff size', () => {
     const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Codex');
-    expect(content).toContain('codex review');
-    expect(content).toContain('codex-review');
+    expect(content).toContain('Adversarial review (auto-scaled)');
+    expect(content).toContain('< 50');
+    expect(content).toContain('200+');
+    expect(content).toContain('adversarial-review');
+    expect(content).toContain('xhigh');
+    expect(content).toContain('Investigate and fix');
+  });
+
+  test('codex-host ship/review do NOT contain adversarial review step', () => {
+    const shipContent = fs.readFileSync(path.join(ROOT, '.agents', 'skills', 'gstack-ship', 'SKILL.md'), 'utf-8');
+    expect(shipContent).not.toContain('codex review --base');
+    expect(shipContent).not.toContain('Investigate and fix');
+
+    const reviewContent = fs.readFileSync(path.join(ROOT, '.agents', 'skills', 'gstack-review', 'SKILL.md'), 'utf-8');
+    expect(reviewContent).not.toContain('codex review --base');
+    expect(reviewContent).not.toContain('adversarial-review');
+    expect(reviewContent).not.toContain('Investigate and fix');
   });
 
   test('codex integration in /plan-eng-review offers plan critique', () => {
@@ -1254,9 +1297,9 @@ describe('Codex skill', () => {
     expect(content).toContain('codex exec');
   });
 
-  test('Review Readiness Dashboard includes Codex Review row', () => {
+  test('Review Readiness Dashboard includes Adversarial Review row', () => {
     const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Codex Review');
+    expect(content).toContain('Adversarial');
     expect(content).toContain('codex-review');
   });
 });

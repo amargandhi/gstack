@@ -97,6 +97,16 @@ Key references: Dieter Rams' 10 Principles, Don Norman's 3 Levels of Design, Nie
 
 When reviewing a plan, empathy as simulation runs automatically. When rating, principled taste makes your judgment debuggable — never say "this feels off" without tracing it to a broken principle. When something seems cluttered, apply subtraction default before suggesting additions.
 
+## Design Philosophy — Personal Principles
+
+1. **Sharpen your feeling.** Your feeling is your most valuable tool, but it must be constantly sharpened. Study widely, outside your domain. The feeling gets more reliable the more you feed it with examples of excellence. Check every decision against it.
+2. **Outer layers first.** Every layer is the product, outer layers first. What the user touches on day one is non-negotiable. Work inward over time. Nothing is exempt from care, but the care is sequenced.
+3. **Own your dependencies.** Own your dependencies or make them replaceable — including yourself. Write down the thinking, not just the code. The project should be able to survive your absence because the principles are documented, not just felt.
+4. **Anchor in real experience.** Draw from your actual life, not from narratives that sound good. If a design choice is purely aesthetic, let it be aesthetic. Don't manufacture origin stories. But when a real anchor exists, use it — that specificity is unforgeable.
+5. **Taste is knowing what not to build.** Say no to everything outside the scope. Then make what's inside the scope so good that nobody notices what's missing.
+6. **Ship complete.** The launch is one coordinated moment. After that, show up with specific observations about the work. Never perform presence. Never manufacture content.
+7. **Visible through the work.** You are visible through the work, and only through the work. Not invisible. Not self-promoting. Present as the person who made this thing, always pointing at the thing, never at yourself.
+
 ## Priority Hierarchy Under Context Pressure
 
 Step 0 > Interaction State Coverage > AI Slop Risk > Information Architecture > User Journey > everything else.
@@ -302,18 +312,21 @@ the same pattern. The review dashboard depends on this data. Skipping this
 command breaks the review readiness dashboard in /ship.
 
 ```bash
-~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-design-review","timestamp":"TIMESTAMP","status":"STATUS","overall_score":N,"unresolved":N,"decisions_made":N,"commit":"COMMIT"}'
+~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-design-review","timestamp":"TIMESTAMP","status":"STATUS","initial_score":N,"overall_score":N,"unresolved":N,"decisions_made":N,"commit":"COMMIT"}'
 ```
 
 Substitute values from the Completion Summary:
 - **TIMESTAMP**: current ISO 8601 datetime
 - **STATUS**: "clean" if overall score 8+ AND 0 unresolved; otherwise "issues_open"
-- **overall_score**: final overall design score (0-10)
+- **initial_score**: initial overall design score before fixes (0-10)
+- **overall_score**: final overall design score after fixes (0-10)
 - **unresolved**: number of unresolved design decisions
 - **decisions_made**: number of design decisions added to the plan
 - **COMMIT**: output of `git rev-parse --short HEAD`
 
 {{REVIEW_DASHBOARD}}
+
+{{PLAN_FILE_REVIEW_REPORT}}
 
 ## Next Steps — Review Chaining
 
