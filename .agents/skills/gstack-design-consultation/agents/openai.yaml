@@ -1,0 +1,6 @@
+interface:
+  display_name: "gstack-design-consultation"
+  short_description: "Use when the user needs help creating or refining a design system from scratch — fonts, colors, spacing scale,..."
+  default_prompt: "Use gstack-design-consultation for this task."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "gstack-plan-design-review"
+  short_description: "Use when the user wants design feedback on a plan — visual hierarchy, typography, spacing, color, interaction..."
+  default_prompt: "Use gstack-plan-design-review for this task."
+policy:
+  allow_implicit_invocation: true

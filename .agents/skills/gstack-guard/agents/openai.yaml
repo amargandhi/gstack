@@ -1,0 +1,6 @@
+interface:
+  display_name: "gstack-guard"
+  short_description: "Use when you need maximum safety — combines destructive command warnings with directory-scoped edit restrictions...."
+  default_prompt: "Use gstack-guard for this task."
+policy:
+  allow_implicit_invocation: true

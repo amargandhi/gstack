@@ -1,0 +1,6 @@
+interface:
+  display_name: "gstack-design-review"
+  short_description: "Use when the user wants a visual design audit of a live site — rates design quality, detects AI slop, finds..."
+  default_prompt: "Use gstack-design-review for this task."
+policy:
+  allow_implicit_invocation: true

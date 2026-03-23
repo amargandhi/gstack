@@ -1,0 +1,6 @@
+interface:
+  display_name: "gstack-investigate"
+  short_description: "Use when the user encounters a bug, error, or unexpected behavior and needs to find the root cause before fixing...."
+  default_prompt: "Use gstack-investigate for this task."
+policy:
+  allow_implicit_invocation: true

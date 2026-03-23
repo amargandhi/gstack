@@ -1,0 +1,6 @@
+interface:
+  display_name: "gstack-browse"
+  short_description: "Use when you need a headless browser to test pages, take screenshots, interact with elements, or verify deployments...."
+  default_prompt: "Use gstack-browse for this task."
+policy:
+  allow_implicit_invocation: true

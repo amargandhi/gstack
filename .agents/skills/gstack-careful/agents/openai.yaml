@@ -1,0 +1,6 @@
+interface:
+  display_name: "gstack-careful"
+  short_description: "Use when working with production systems, live databases, or running destructive commands like rm -rf, DROP TABLE,..."
+  default_prompt: "Use gstack-careful for this task."
+policy:
+  allow_implicit_invocation: true

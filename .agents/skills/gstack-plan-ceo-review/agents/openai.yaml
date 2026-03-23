@@ -1,0 +1,6 @@
+interface:
+  display_name: "gstack-plan-ceo-review"
+  short_description: "Use when the user wants strategic feedback on a plan — whether the problem is worth solving, if scope is right, or..."
+  default_prompt: "Use gstack-plan-ceo-review for this task."
+policy:
+  allow_implicit_invocation: true
