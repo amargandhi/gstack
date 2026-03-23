@@ -28,6 +28,9 @@ _PROACTIVE=$(~/.claude/skills/gstack/bin/gstack-config get proactive 2>/dev/null
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "BRANCH: $_BRANCH"
 echo "PROACTIVE: $_PROACTIVE"
+source <(~/.claude/skills/gstack/bin/gstack-repo-mode 2>/dev/null) || true
+REPO_MODE=${REPO_MODE:-unknown}
+echo "REPO_MODE: $REPO_MODE"
 _LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
 echo "LAKE_INTRO: $_LAKE_SEEN"
 _TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || true)
@@ -125,9 +128,15 @@ Continue with the current skill.
 if [ -d "$HOME/.claude/skills/gstack/.git" ]; then
   INSTALL_TYPE="global-git"
   INSTALL_DIR="$HOME/.claude/skills/gstack"
+elif [ -d "$HOME/.gstack/repos/gstack/.git" ]; then
+  INSTALL_TYPE="global-git"
+  INSTALL_DIR="$HOME/.gstack/repos/gstack"
 elif [ -d ".claude/skills/gstack/.git" ]; then
   INSTALL_TYPE="local-git"
   INSTALL_DIR=".claude/skills/gstack"
+elif [ -d ".agents/skills/gstack/.git" ]; then
+  INSTALL_TYPE="local-git"
+  INSTALL_DIR=".agents/skills/gstack"
 elif [ -d ".claude/skills/gstack" ]; then
   INSTALL_TYPE="vendored"
   INSTALL_DIR=".claude/skills/gstack"

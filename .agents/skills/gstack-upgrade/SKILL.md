@@ -11,20 +11,28 @@ description: |
 ## Preamble (run first)
 
 ```bash
-_UPD=$(~/.codex/skills/gstack/bin/gstack-update-check 2>/dev/null || .agents/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
+_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+GSTACK_ROOT="$HOME/.codex/skills/gstack"
+[ -n "$_ROOT" ] && [ -d "$_ROOT/.agents/skills/gstack" ] && GSTACK_ROOT="$_ROOT/.agents/skills/gstack"
+GSTACK_BIN="$GSTACK_ROOT/bin"
+GSTACK_BROWSE="$GSTACK_ROOT/browse/dist"
+_UPD=$($GSTACK_BIN/gstack-update-check 2>/dev/null || .agents/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
 [ -n "$_UPD" ] && echo "$_UPD" || true
 mkdir -p ~/.gstack/sessions
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
 find ~/.gstack/sessions -mmin +120 -type f -delete 2>/dev/null || true
-_CONTRIB=$(~/.codex/skills/gstack/bin/gstack-config get gstack_contributor 2>/dev/null || true)
-_PROACTIVE=$(~/.codex/skills/gstack/bin/gstack-config get proactive 2>/dev/null || echo "true")
+_CONTRIB=$($GSTACK_BIN/gstack-config get gstack_contributor 2>/dev/null || true)
+_PROACTIVE=$($GSTACK_BIN/gstack-config get proactive 2>/dev/null || echo "true")
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "BRANCH: $_BRANCH"
 echo "PROACTIVE: $_PROACTIVE"
+source <($GSTACK_BIN/gstack-repo-mode 2>/dev/null) || true
+REPO_MODE=${REPO_MODE:-unknown}
+echo "REPO_MODE: $REPO_MODE"
 _LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
 echo "LAKE_INTRO: $_LAKE_SEEN"
-_TEL=$(~/.codex/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || true)
+_TEL=$($GSTACK_BIN/gstack-config get telemetry 2>/dev/null || true)
 _TEL_PROMPTED=$([ -f ~/.gstack/.telemetry-prompted ] && echo "yes" || echo "no")
 _TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
@@ -32,13 +40,13 @@ echo "TELEMETRY: ${_TEL:-off}"
 echo "TEL_PROMPTED: $_TEL_PROMPTED"
 mkdir -p ~/.gstack/analytics
 echo '{"skill":"gstack-upgrade","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
-for _PF in ~/.gstack/analytics/.pending-*; do [ -f "$_PF" ] && ~/.codex/skills/gstack/bin/gstack-telemetry-log --event-type skill_run --skill _pending_finalize --outcome unknown --session-id "$_SESSION_ID" 2>/dev/null || true; break; done
+for _PF in ~/.gstack/analytics/.pending-*; do [ -f "$_PF" ] && $GSTACK_BIN/gstack-telemetry-log --event-type skill_run --skill _pending_finalize --outcome unknown --session-id "$_SESSION_ID" 2>/dev/null || true; break; done
 ```
 
 If `PROACTIVE` is `"false"`, do not proactively suggest gstack skills — only invoke
 them when the user explicitly asks. The user opted out of proactive suggestions.
 
-If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.codex/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
+If output shows `UPGRADE_AVAILABLE <old> <new>`: read `$GSTACK_ROOT/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
 
 ## AskUserQuestion Format
 
@@ -68,7 +76,7 @@ First, check if auto-upgrade is enabled:
 ```bash
 _AUTO=""
 [ "${GSTACK_AUTO_UPGRADE:-}" = "1" ] && _AUTO="true"
-[ -z "$_AUTO" ] && _AUTO=$(~/.codex/skills/gstack/bin/gstack-config get auto_upgrade 2>/dev/null || true)
+[ -z "$_AUTO" ] && _AUTO=$($GSTACK_ROOT/bin/gstack-config get auto_upgrade 2>/dev/null || true)
 echo "AUTO_UPGRADE=$_AUTO"
 ```
 
@@ -82,7 +90,7 @@ echo "AUTO_UPGRADE=$_AUTO"
 
 **If "Always keep me up to date":**
 ```bash
-~/.codex/skills/gstack/bin/gstack-config set auto_upgrade true
+$GSTACK_ROOT/bin/gstack-config set auto_upgrade true
 ```
 Tell user: "Auto-upgrade enabled. Future updates will install automatically." Then proceed to Step 2.
 
@@ -108,9 +116,9 @@ Tell user the snooze duration: "Next reminder in 24h" (or 48h or 1 week, dependi
 
 **If "Never ask again":**
 ```bash
-~/.codex/skills/gstack/bin/gstack-config set update_check false
+$GSTACK_ROOT/bin/gstack-config set update_check false
 ```
-Tell user: "Update checks disabled. Run `~/.codex/skills/gstack/bin/gstack-config set update_check true` to re-enable."
+Tell user: "Update checks disabled. Run `$GSTACK_ROOT/bin/gstack-config set update_check true` to re-enable."
 Continue with the current skill.
 
 ### Step 2: Detect install type
@@ -119,6 +127,12 @@ Continue with the current skill.
 if [ -d "$HOME/.agents/skills/gstack/.git" ]; then
   INSTALL_TYPE="global-git"
   INSTALL_DIR="$HOME/.agents/skills/gstack"
+elif [ -d "$HOME/.gstack/repos/gstack/.git" ]; then
+  INSTALL_TYPE="global-git"
+  INSTALL_DIR="$HOME/.gstack/repos/gstack"
+elif [ -d ".agents/skills/gstack/.git" ]; then
+  INSTALL_TYPE="local-git"
+  INSTALL_DIR=".agents/skills/gstack"
 elif [ -d ".agents/skills/gstack/.git" ]; then
   INSTALL_TYPE="local-git"
   INSTALL_DIR=".agents/skills/gstack"
@@ -241,7 +255,7 @@ When invoked directly as `/gstack-upgrade` (not from a preamble):
 
 1. Force a fresh update check (bypass cache):
 ```bash
-~/.codex/skills/gstack/bin/gstack-update-check --force 2>/dev/null || \
+$GSTACK_ROOT/bin/gstack-update-check --force 2>/dev/null || \
 .agents/skills/gstack/bin/gstack-update-check --force 2>/dev/null || true
 ```
 Use the output to determine if an upgrade is available.
