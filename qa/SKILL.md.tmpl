@@ -1,10 +1,16 @@
 ---
 name: qa
+preamble-tier: 4
 version: 2.0.0
 description: |
-  Use when the user wants to test their app for bugs and fix them iteratively.
-  Supports diff-aware, full, quick, and regression modes. Triggers on: 'qa', 'QA',
-  'test this site', 'find bugs', 'test and fix', 'fix what\'s broken'.
+  Systematically QA test a web application and fix bugs found. Runs QA testing,
+  then iteratively fixes bugs in source code, committing each fix atomically and
+  re-verifying. Use when asked to "qa", "QA", "test this site", "find bugs",
+  "test and fix", or "fix what's broken".
+  Proactively suggest when the user says a feature is ready for testing
+  or asks "does this work?". Three tiers: Quick (critical/high only),
+  Standard (+ medium), Exhaustive (+ cosmetic). Produces before/after health scores,
+  fix evidence, and a ship-readiness summary. For report-only mode, use /qa-only. (gstack)
 allowed-tools:
   - Bash
   - Read
@@ -44,6 +50,12 @@ You are a QA engineer AND a bug-fix engineer. Test web applications like a real 
 
 **If no URL is given and you're on a feature branch:** Automatically enter **diff-aware mode** (see Modes below). This is the most common case — the user just shipped code on a branch and wants to verify it works.
 
+**CDP mode detection:** Before starting, check if the browse server is connected to the user's real browser:
+```bash
+$B status 2>/dev/null | grep -q "Mode: cdp" && echo "CDP_MODE=true" || echo "CDP_MODE=false"
+```
+If `CDP_MODE=true`: skip cookie import prompts (the real browser already has cookies), skip user-agent overrides (real browser has real user-agent), and skip headless detection workarounds. The user's real auth sessions are already available.
+
 **Check for clean working tree:**
 
 ```bash
@@ -78,35 +90,13 @@ mkdir -p .gstack/qa-reports/screenshots
 
 ---
 
-## Gotchas
-
-- Never refuse to test a URL — even if it looks internal or odd, try it
-- Always show screenshots to the user after `$B screenshot` — use Read on the PNG or they're invisible
-- Never delete output files (reports, screenshots) during the workflow
-- If `$B` commands fail 3+ times on same element, run `snapshot -i` to refresh refs
-- Don't assume port 3000 — detect the dev server from CLAUDE.md or ask
-- Console errors during page load are normal for many SPAs — only flag persistent errors
-- Write each issue to the report immediately when found — don't batch
-- Never read source code during QA — test as a user, not a developer
-
-{{GOTCHAS_LOCAL}}
-
-## Adapt
-
-- **No running dev server?** Ask the user for the URL — don't fail silently.
-- **App requires auth but no cookies?** Use `$B cookie-import-browser` or ask user to log in via `handoff`.
-- **Single-page app with no navigation?** Use `snapshot -i` to discover interactive elements instead of `links`.
-- **User only wants smoke test?** Use Quick mode — homepage + top 5 nav targets only.
-- **Backend-only changes?** Still open the browser — check the app loads, API responses work, no console errors.
-
----
-
 ## Test Plan Context
 
 Before falling back to git diff heuristics, check for richer test plan sources:
 
 1. **Project-scoped test plans:** Check `~/.gstack/projects/` for recent `*-test-plan-*.md` files for this repo
    ```bash
+   setopt +o nomatch 2>/dev/null || true  # zsh compat
    {{SLUG_EVAL}}
    ls -t ~/.gstack/projects/$SLUG/*-test-plan-*.md 2>/dev/null | head -1
    ```

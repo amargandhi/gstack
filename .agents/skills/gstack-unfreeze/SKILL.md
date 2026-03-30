@@ -1,18 +1,15 @@
 ---
 name: unfreeze
 description: |
-  Use when you want to remove edit restrictions set by /freeze or /guard and allow
-  editing anywhere again. Triggers on: 'unfreeze', 'remove restrictions',
-  'unlock edits', 'clear freeze'.
+  Clear the freeze boundary set by /freeze, allowing edits to all directories
+  again. Use when you want to widen edit scope without ending the session.
+  Use when asked to "unfreeze", "unlock edits", "remove freeze", or
+  "allow all edits". (gstack)
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
 
 # /unfreeze — Clear Freeze Boundary
-
-## Gotchas
-
-
 
 Remove the edit restriction set by `/freeze`, allowing edits to all directories.
 

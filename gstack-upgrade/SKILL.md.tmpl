@@ -2,22 +2,14 @@
 name: gstack-upgrade
 version: 1.1.0
 description: |
-  Use when upgrading gstack to the latest version. Handles version detection,
-  backup, and migration. Triggers on: 'upgrade gstack', 'update gstack',
-  'gstack upgrade', 'get latest gstack'.
+  Upgrade gstack to the latest version. Detects global vs vendored install,
+  runs the upgrade, and shows what's new. Use when asked to "upgrade gstack",
+  "update gstack", or "get latest version".
 allowed-tools:
   - Bash
   - Read
   - Write
   - AskUserQuestion
----
-
-{{PREAMBLE_ESSENTIAL}}
-
-## Gotchas
-
-{{GOTCHAS_LOCAL}}
-
 ---
 
 # /gstack-upgrade

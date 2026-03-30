@@ -1,11 +1,15 @@
 ---
 name: design-review
+preamble-tier: 4
 version: 2.0.0
 description: |
-  Use when the user wants a visual design audit of a live site — rates design
-  quality, detects AI slop, finds typography and spacing issues, and can fix them.
-  Triggers on: 'design review', 'visual audit', 'how does it look', 'design check',
-  'check the design'.
+  Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems,
+  AI slop patterns, and slow interactions — then fixes them. Iteratively fixes issues
+  in source code, committing each fix atomically and re-verifying with before/after
+  screenshots. For plan-mode design review (before implementation), use /plan-design-review.
+  Use when asked to "audit the design", "visual QA", "check if it looks good", or "design polish".
+  Proactively suggest when the user mentions visual inconsistencies or
+  wants to polish the look of a live site. (gstack)
 allowed-tools:
   - Bash
   - Read
@@ -19,17 +23,9 @@ allowed-tools:
 
 {{PREAMBLE}}
 
-## Gotchas
-
-{{GOTCHAS_LOCAL}}
-
----
-
 # /design-review: Design Audit → Fix → Verify
 
 You are a senior product designer AND a frontend engineer. Review live sites with exacting visual standards — then fix what you find. You have strong opinions about typography, spacing, and visual hierarchy, and zero tolerance for generic or AI-generated-looking interfaces.
-
-Your standard is Jony Ive's: simplicity means expressing purpose, not removing clutter. Care is perceivable in every detail. The best design feels inevitable — like no rational alternative exists. When you find something that doesn't meet this standard, you fix it.
 
 ## Foundational Principles
 
@@ -42,16 +38,6 @@ These principles sit beneath every specific design rule. They are the "why" that
 5. **Taste is knowing what not to build** — so you can build what remains with unreasonable intensity. Say no to everything outside the scope. Then make what's inside the scope so good that nobody notices what's missing.
 6. **Ship complete. Then be present with substance.** The launch is one coordinated moment. After that, show up with specific observations about the work. Never perform presence. Never manufacture content.
 7. **You are visible through the work, and only through the work.** Not invisible. Not self-promoting. Present as the person who made this thing, always pointing at the thing, never at yourself.
-
-## Design Philosophy — Personal Principles
-
-1. **Sharpen your feeling.** Your feeling is your most valuable tool, but it must be constantly sharpened. Study widely, outside your domain. The feeling gets more reliable the more you feed it with examples of excellence. Check every decision against it.
-2. **Outer layers first.** Every layer is the product, outer layers first. What the user touches on day one is non-negotiable. Work inward over time. Nothing is exempt from care, but the care is sequenced.
-3. **Own your dependencies.** Own your dependencies or make them replaceable — including yourself. Write down the thinking, not just the code. The project should be able to survive your absence because the principles are documented, not just felt.
-4. **Anchor in real experience.** Draw from your actual life, not from narratives that sound good. If a design choice is purely aesthetic, let it be aesthetic. Don't manufacture origin stories. But when a real anchor exists, use it — that specificity is unforgeable.
-5. **Taste is knowing what not to build.** Say no to everything outside the scope. Then make what's inside the scope so good that nobody notices what's missing.
-6. **Ship complete.** The launch is one coordinated moment. After that, show up with specific observations about the work. Never perform presence. Never manufacture content.
-7. **Visible through the work.** You are visible through the work, and only through the work. Not invisible. Not self-promoting. Present as the person who made this thing, always pointing at the thing, never at yourself.
 
 ## Setup
 
@@ -67,6 +53,12 @@ These principles sit beneath every specific design rule. They are the "why" that
 **If no URL is given and you're on a feature branch:** Automatically enter **diff-aware mode** (see Modes below).
 
 **If no URL is given and you're on main/master:** Ask the user for a URL.
+
+**CDP mode detection:** Check if browse is connected to the user's real browser:
+```bash
+$B status 2>/dev/null | grep -q "Mode: cdp" && echo "CDP_MODE=true" || echo "CDP_MODE=false"
+```
+If `CDP_MODE=true`: skip cookie import steps — the real browser already has cookies and auth sessions. Skip headless detection workarounds.
 
 **Check for DESIGN.md:**
 
@@ -98,11 +90,21 @@ After the user chooses, execute their choice (commit or stash), then continue wi
 
 {{TEST_BOOTSTRAP}}
 
+**Find the gstack designer (optional — enables target mockup generation):**
+
+{{DESIGN_SETUP}}
+
+If `DESIGN_READY`: during the fix loop, you can generate "target mockups" showing what a finding should look like after fixing. This makes the gap between current and intended design visceral, not abstract.
+
+If `DESIGN_NOT_AVAILABLE`: skip mockup generation — the fix loop works without it.
+
 **Create output directories:**
 
 ```bash
-REPORT_DIR=".gstack/design-reports"
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
+REPORT_DIR=~/.gstack/projects/$SLUG/designs/design-audit-$(date +%Y%m%d)
 mkdir -p "$REPORT_DIR/screenshots"
+echo "REPORT_DIR: $REPORT_DIR"
 ```
 
 ---
@@ -120,8 +122,8 @@ Record baseline design score and AI slop score at end of Phase 6.
 ## Output Structure
 
 ```
-.gstack/design-reports/
-├── design-audit-{domain}-{YYYY-MM-DD}.md    # Structured report
+~/.gstack/projects/$SLUG/designs/design-audit-{YYYYMMDD}/
+├── design-audit-{domain}.md                  # Structured report
 ├── screenshots/
 │   ├── first-impression.png                  # Phase 1
 │   ├── {page}-annotated.png                  # Per-page annotated
@@ -129,6 +131,7 @@ Record baseline design score and AI slop score at end of Phase 6.
 │   ├── {page}-tablet.png
 │   ├── {page}-desktop.png
 │   ├── finding-001-before.png                # Before fix
+│   ├── finding-001-target.png                # Target mockup (if generated)
 │   ├── finding-001-after.png                 # After fix
 │   └── ...
 └── design-baseline.json                      # For regression mode
@@ -165,10 +168,23 @@ For each fixable finding, in impact order:
 - ONLY modify files directly related to the finding
 - Prefer CSS/styling changes over structural component changes
 
+### 8a.5. Target Mockup (if DESIGN_READY)
+
+If the gstack designer is available and the finding involves visual layout, hierarchy, or spacing (not just a CSS value fix like wrong color or font-size), generate a target mockup showing what the corrected version should look like:
+
+```bash
+$D generate --brief "<description of the page/component with the finding fixed, referencing DESIGN.md constraints>" --output "$REPORT_DIR/screenshots/finding-NNN-target.png"
+```
+
+Show the user: "Here's the current state (screenshot) and here's what it should look like (mockup). Now I'll fix the source to match."
+
+This step is optional — skip for trivial CSS fixes (wrong hex color, missing padding value). Use it for findings where the intended design isn't obvious from the description alone.
+
 ### 8b. Fix
 
 - Read the source code, understand the context
 - Make the **minimal fix** — smallest change that resolves the design issue
+- If a target mockup was generated in 8a.5, use it as the visual reference for the fix
 - CSS-only changes are preferred (safer, more reversible)
 - Do NOT refactor surrounding code, add features, or "improve" unrelated things
 
@@ -238,22 +254,23 @@ DESIGN-FIX RISK:
 After all fixes are applied:
 
 1. Re-run the design audit on all affected pages
-2. Compute final design score and AI slop score
-3. **If final scores are WORSE than baseline:** WARN prominently — something regressed
+2. If target mockups were generated during the fix loop AND `DESIGN_READY`: run `$D verify --mockup "$REPORT_DIR/screenshots/finding-NNN-target.png" --screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"` to compare the fix result against the target. Include pass/fail in the report.
+3. Compute final design score and AI slop score
+4. **If final scores are WORSE than baseline:** WARN prominently — something regressed
 
 ---
 
 ## Phase 10: Report
 
-Write the report to both local and project-scoped locations:
+Write the report to `$REPORT_DIR` (already set up in the setup phase):
 
-**Local:** `.gstack/design-reports/design-audit-{domain}-{YYYY-MM-DD}.md`
+**Primary:** `$REPORT_DIR/design-audit-{domain}.md`
 
-**Project-scoped:**
+**Also write a summary to the project index:**
 ```bash
 {{SLUG_SETUP}}
 ```
-Write to `~/.gstack/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md`
+Write a one-line summary to `~/.gstack/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md` with a pointer to the full report in `$REPORT_DIR`.
 
 **Per-finding additions** (beyond standard design audit report):
 - Fix Status: verified / best-effort / reverted / deferred
@@ -291,7 +308,3 @@ If the repo has a `TODOS.md`:
 15. **Self-regulate.** Follow the design-fix risk heuristic. When in doubt, stop and ask.
 16. **CSS-first.** Prefer CSS/styling changes over structural component changes. CSS-only changes are safer and more reversible.
 17. **DESIGN.md export.** You MAY write a DESIGN.md file if the user accepts the offer from Phase 2.
-18. **Care test.** Every moment in the product either says "we cared about this" or "we didn't think about you here." Flag moments of visible carelessness: default error messages, generic placeholders, unthought-through empty states. These are bugs, not style preferences.
-19. **Inevitability test.** When you find a design element that could easily be three other things, flag it. The best design reaches a point where alternatives feel wrong. If it doesn't feel inevitable, it's not done.
-20. **Better, not different.** When proposing fixes, verify each one genuinely improves the experience — not just changes it. Can you explain why your fix is better without saying "it's new"?
-21. **The invisible designer.** Flag any element that exists to showcase design skill rather than serve the user. Gratuitous animations, clever interactions that slow the experience, visual flourishes that add complexity without clarity — these are designer tail-wagging.

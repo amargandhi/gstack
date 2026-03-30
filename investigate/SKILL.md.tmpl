@@ -1,11 +1,15 @@
 ---
 name: investigate
+preamble-tier: 2
 version: 1.0.0
 description: |
-  Use when the user encounters a bug, error, or unexpected behavior and needs to
-  find the root cause before fixing. Iron Law: no fixes without root cause.
-  Triggers on: 'debug this', 'why is this broken', 'investigate', 'root cause',
-  'fix this bug'.
+  Systematic debugging with root cause investigation. Four phases: investigate,
+  analyze, hypothesize, implement. Iron Law: no fixes without root cause.
+  Use when asked to "debug this", "fix this bug", "why is this broken",
+  "investigate this error", or "root cause analysis".
+  Proactively invoke this skill (do NOT debug directly) when the user reports
+  errors, 500 errors, stack traces, unexpected behavior, "it was working
+  yesterday", or is troubleshooting why something stopped working. (gstack)
 allowed-tools:
   - Bash
   - Read
@@ -30,18 +34,6 @@ hooks:
 ---
 
 {{PREAMBLE}}
-
-## Gotchas
-
-- Never propose a fix before tracing the full data flow — root cause first
-- If each fix reveals a new problem, stop — you're chasing symptoms, not the cause
-- Don't say "quick fix for now" — temporary fixes become permanent
-- After 3 failed fix attempts, STOP and escalate
-- Auto-freezes edits to the debug directory — this is intentional scope protection
-
-{{GOTCHAS_LOCAL}}
-
----
 
 # Systematic Debugging
 
@@ -68,6 +60,8 @@ Gather context before forming any hypothesis.
    Was this working before? What changed? A regression means the root cause is in the diff.
 
 4. **Reproduce:** Can you trigger the bug deterministically? If not, gather more evidence before proceeding.
+
+{{LEARNINGS_SEARCH}}
 
 Output: **"Root cause hypothesis: ..."** — a specific, testable claim about what is wrong and why.
 
@@ -191,6 +185,8 @@ Related:         [TODOS.md items, prior bugs in same area, architectural notes]
 Status:          DONE | DONE_WITH_CONCERNS | BLOCKED
 ════════════════════════════════════════
 ```
+
+{{LEARNINGS_LOG}}
 
 ---
 

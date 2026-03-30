@@ -2,9 +2,11 @@
 name: careful
 version: 0.1.0
 description: |
-  Use when working with production systems, live databases, or running destructive
-  commands like rm -rf, DROP TABLE, or force-push. Triggers on: 'be careful',
-  'production mode', 'careful mode', 'working on prod'.
+  Safety guardrails for destructive commands. Warns before rm -rf, DROP TABLE,
+  force-push, git reset --hard, kubectl delete, and similar destructive operations.
+  User can override each warning. Use when touching prod, debugging live systems,
+  or working in a shared environment. Use when asked to "be careful", "safety mode",
+  "prod mode", or "careful mode". (gstack)
 allowed-tools:
   - Bash
   - Read
@@ -20,10 +22,6 @@ hooks:
 <!-- Regenerate: bun run gen:skill-docs -->
 
 # /careful — Destructive Command Guardrails
-
-## Gotchas
-
-
 
 Safety mode is now **active**. Every bash command will be checked for destructive
 patterns before running. If a destructive command is detected, you'll be warned
