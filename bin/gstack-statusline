@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# gstack-statusline — emit a single line for Claude Code's statusLine setting.
+#
+# Format: "gstack <ver> | <branch> | last: <skill> <Δt ago> | ckpt: <Δt ago>"
+#
+# Reads:
+#   $CLAUDE_PROJECT_DIR/VERSION       (gstack version)
+#   git branch --show-current         (current branch in CWD)
+#   ~/.gstack/projects/<slug>/timeline.jsonl    (last skill run)
+#   ~/.gstack/projects/<slug>/checkpoints/      (last checkpoint)
+#
+# Designed to be fast (<200ms) — Claude Code calls this on every prompt.
+# All errors are silently swallowed to avoid breaking the prompt.
+
+set -euo pipefail
+
+# ─── Project version ────────────────────────────────────────
+VER="?"
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/VERSION" ]; then
+  VER=$(cat "$CLAUDE_PROJECT_DIR/VERSION" 2>/dev/null || echo "?")
+fi
+
+# ─── Current branch ─────────────────────────────────────────
+BRANCH="-"
+if BRANCH_OUT=$(git -C "${CLAUDE_PROJECT_DIR:-$PWD}" branch --show-current 2>/dev/null); then
+  [ -n "$BRANCH_OUT" ] && BRANCH="$BRANCH_OUT"
+fi
+
+# ─── Project slug (matches gstack-slug logic, fast path: cache only) ───
+SLUG=""
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  CACHE_KEY=$(printf '%s' "$CLAUDE_PROJECT_DIR" | tr '/' '_')
+  CACHE_FILE="$HOME/.gstack/slug-cache/$CACHE_KEY"
+  if [ -f "$CACHE_FILE" ]; then
+    SLUG=$(cat "$CACHE_FILE" 2>/dev/null || echo "")
+  fi
+fi
+
+# ─── Last skill from timeline ──────────────────────────────
+LAST_SKILL=""
+if [ -n "$SLUG" ]; then
+  TIMELINE="$HOME/.gstack/projects/$SLUG/timeline.jsonl"
+  if [ -f "$TIMELINE" ]; then
+    LAST_LINE=$(tail -n 1 "$TIMELINE" 2>/dev/null || echo "")
+    if [ -n "$LAST_LINE" ]; then
+      SKILL=$(printf '%s' "$LAST_LINE" | grep -oE '"skill":"[^"]+"' | head -1 | cut -d'"' -f4 || echo "")
+      TS=$(printf '%s' "$LAST_LINE" | grep -oE '"ts":"[^"]+"' | head -1 | cut -d'"' -f4 || echo "")
+      if [ -n "$SKILL" ] && [ -n "$TS" ]; then
+        # Strip milliseconds and Z, parse as UTC
+        TS_CLEAN=$(printf '%s' "$TS" | sed 's/\.[0-9]*Z$/Z/' | sed 's/Z$//')
+        TS_EPOCH=$(date -j -u -f "%Y-%m-%dT%H:%M:%S" "$TS_CLEAN" +%s 2>/dev/null || echo 0)
+        if [ "$TS_EPOCH" -gt 0 ]; then
+          NOW=$(date +%s)
+          AGE=$((NOW - TS_EPOCH))
+          if [ "$AGE" -lt 60 ]; then
+            LAST_SKILL="last: $SKILL ${AGE}s ago"
+          elif [ "$AGE" -lt 3600 ]; then
+            LAST_SKILL="last: $SKILL $((AGE / 60))m ago"
+          elif [ "$AGE" -lt 86400 ]; then
+            LAST_SKILL="last: $SKILL $((AGE / 3600))h ago"
+          else
+            LAST_SKILL="last: $SKILL $((AGE / 86400))d ago"
+          fi
+        fi
+      fi
+    fi
+  fi
+fi
+
+# ─── Last checkpoint age ───────────────────────────────────
+CKPT=""
+if [ -n "$SLUG" ]; then
+  CKPT_DIR="$HOME/.gstack/projects/$SLUG/checkpoints"
+  if [ -d "$CKPT_DIR" ]; then
+    NEWEST=$(ls -t "$CKPT_DIR"/*.md 2>/dev/null | head -1 || echo "")
+    if [ -n "$NEWEST" ]; then
+      MTIME=$(stat -f %m "$NEWEST" 2>/dev/null || echo 0)
+      if [ "$MTIME" -gt 0 ]; then
+        AGE_MIN=$(( ( $(date +%s) - MTIME ) / 60 ))
+        if [ "$AGE_MIN" -lt 60 ]; then
+          CKPT="ckpt: ${AGE_MIN}m ago"
+        elif [ "$AGE_MIN" -lt 1440 ]; then
+          CKPT="ckpt: $((AGE_MIN / 60))h ago"
+        else
+          CKPT="ckpt: $((AGE_MIN / 1440))d ago"
+        fi
+      fi
+    fi
+  fi
+fi
+
+# ─── Compose ───────────────────────────────────────────────
+LINE="gstack $VER | $BRANCH"
+[ -n "$LAST_SKILL" ] && LINE="$LINE | $LAST_SKILL"
+[ -n "$CKPT" ] && LINE="$LINE | $CKPT"
+echo "$LINE"

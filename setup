@@ -805,10 +805,16 @@ if [ ! -f "$HOME/.gstack/.welcome-seen" ]; then
 fi
 rm -f /tmp/gstack-latest-version
 
-# 10. Team mode: register/unregister SessionStart hook
+# 10. Claude Code statusLine: register on every install (gated to not overwrite user statusLine)
 SETTINGS_HOOK="$SOURCE_GSTACK_DIR/bin/gstack-settings-hook"
 HOOK_CMD="$SOURCE_GSTACK_DIR/bin/gstack-session-update"
+STATUSLINE_CMD="$SOURCE_GSTACK_DIR/bin/gstack-statusline"
 
+if [ -x "$SETTINGS_HOOK" ] && [ -x "$STATUSLINE_CMD" ]; then
+  "$SETTINGS_HOOK" statusline-add "$STATUSLINE_CMD" 2>/dev/null || true
+fi
+
+# 11. Team mode: register/unregister SessionStart hook
 if [ "$TEAM_MODE" -eq 1 ]; then
   "$GSTACK_CONFIG" set auto_upgrade true 2>/dev/null || true
   "$GSTACK_CONFIG" set team_mode true 2>/dev/null || true

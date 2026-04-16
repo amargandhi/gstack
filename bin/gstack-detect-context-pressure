@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# gstack-detect-context-pressure — heuristic guidance for Claude Code session bloat.
+#
+# Claude Code doesn't expose token counts to scripts. The most actionable signal
+# is "how many tool events have happened in this session" — we count timeline-log
+# entries with the current session ID.
+#
+# Output: one of LOW / MEDIUM / HIGH plus a recommendation.
+# Exit code: 0 always (this is advisory, not gating).
+
+set -euo pipefail
+
+SESSION_ID="${GSTACK_SESSION_ID:-${_SESSION_ID:-unknown}}"
+
+# Find timeline file for current project (uses gstack-slug cache, fast path)
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+CACHE_KEY=$(printf '%s' "$PROJECT_DIR" | tr '/' '_')
+CACHE_FILE="$HOME/.gstack/slug-cache/$CACHE_KEY"
+SLUG=""
+if [ -f "$CACHE_FILE" ]; then
+  SLUG=$(cat "$CACHE_FILE" 2>/dev/null || echo "")
+fi
+
+if [ -z "$SLUG" ]; then
+  echo "Context pressure: UNKNOWN (no project slug — run a gstack skill first)"
+  exit 0
+fi
+
+TIMELINE="$HOME/.gstack/projects/$SLUG/timeline.jsonl"
+if [ ! -f "$TIMELINE" ]; then
+  echo "Context pressure: UNKNOWN (no timeline data yet)"
+  exit 0
+fi
+
+# Count events in current session
+if [ "$SESSION_ID" = "unknown" ]; then
+  # No session ID — fall back to recent activity (last hour)
+  EVENTS=$(awk -v cutoff="$(date -u -v-1H +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S 2>/dev/null)" \
+    '$0 ~ /"ts":"/ { match($0, /"ts":"[^"]+"/); ts=substr($0, RSTART+6, RLENGTH-7); if (ts > cutoff) c++ } END { print c+0 }' "$TIMELINE" 2>/dev/null || echo 0)
+  SCOPE="last hour"
+else
+  EVENTS=$(grep -c "\"session\":\"$SESSION_ID\"" "$TIMELINE" 2>/dev/null || echo 0)
+  SCOPE="this session"
+fi
+
+SKILLS=$(grep "\"session\":\"$SESSION_ID\"" "$TIMELINE" 2>/dev/null \
+  | grep -oE '"skill":"[^"]+"' | sort -u | wc -l | tr -d ' ' || echo 0)
+
+echo "Context pressure check: $EVENTS events across $SKILLS distinct skills ($SCOPE)."
+
+if [ "$EVENTS" -lt 30 ]; then
+  echo "→ LOW pressure. Continue without compaction."
+elif [ "$EVENTS" -lt 80 ]; then
+  echo "→ MEDIUM pressure. Consider /compact <hint> before the next noisy operation"
+  echo "  (e.g. before a /qa run, codebase scan, or large refactor)."
+else
+  echo "→ HIGH pressure. Recommend /compact <hint> NOW, or /clear if next task is unrelated."
+  echo "  Auto-compaction may trigger soon — better to steer it yourself."
+fi

@@ -350,6 +350,18 @@ are shown, synthesize a one-paragraph welcome briefing before proceeding:
 "Welcome back to {branch}. Last session: /{skill} ({outcome}). [Checkpoint summary if
 available]. [Health score if available]." Keep it to 2-3 sentences.
 
+## Claude Code Session Management
+
+You're running inside Claude Code with up to 1M tokens of context. Use it deliberately:
+
+- **New task, no shared context** → `/clear` (you control what carries forward).
+- **Same task, wrong approach taken** → `/rewind` (or double-tap Esc). Drops failed attempts but keeps file reads, then re-prompt with the lesson learned ("don't use approach A, the foo module doesn't expose that — go straight to B").
+- **Mid-task, context bloated with old debugging** → `/compact <hint>` (e.g. `/compact focus on the auth refactor, drop test debugging`). Steer the summarizer rather than letting auto-compaction guess.
+- **Next step generates voluminous output** (codebase recon, large file scan, verification pass, parallel design variants) → spawn a subagent via the Agent tool. The child's intermediate output stays in its context; only the conclusion returns to yours. Mental model: *will I need this tool output again, or just the conclusion?*
+- **Approaching context limit** → run `~/.claude/skills/gstack/bin/gstack-detect-context-pressure` for guidance, or `/compact` proactively before auto-compaction kicks in.
+
+After `/compact` or `/clear`, the Context Recovery block above re-reads recent checkpoints, timeline events, and learnings — so resuming is cheap.
+
 ## AskUserQuestion Format
 
 **ALWAYS follow this structure for every AskUserQuestion call:**
@@ -799,3 +811,9 @@ Rank by `weight * (10 - score)` descending. Only show categories below 10.
 5. **Show raw output for failures.** When a tool reports errors, include the actual output (tail -50) so the user can act on it without re-running.
 6. **Trends require history.** On first run, say "First health check -- no trend data yet. Run /health again after making changes to track progress."
 7. **Be honest about scores.** A codebase with 100 type errors and all tests passing is not healthy. The composite score should reflect reality.
+
+## Use Subagents Here
+
+Health checks read across the whole repo. Spawn an `explorer` subagent to compute metrics; the score + 3 worst offenders return to parent.
+
+Available agents in `.claude/agents/`: `explorer`, `verifier`, `security-reviewer`, `adversarial-reviewer`. Spawn via the Agent tool and aggregate results in the parent context.

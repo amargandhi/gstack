@@ -351,6 +351,18 @@ are shown, synthesize a one-paragraph welcome briefing before proceeding:
 "Welcome back to {branch}. Last session: /{skill} ({outcome}). [Checkpoint summary if
 available]. [Health score if available]." Keep it to 2-3 sentences.
 
+## Claude Code Session Management
+
+You're running inside Claude Code with up to 1M tokens of context. Use it deliberately:
+
+- **New task, no shared context** → `/clear` (you control what carries forward).
+- **Same task, wrong approach taken** → `/rewind` (or double-tap Esc). Drops failed attempts but keeps file reads, then re-prompt with the lesson learned ("don't use approach A, the foo module doesn't expose that — go straight to B").
+- **Mid-task, context bloated with old debugging** → `/compact <hint>` (e.g. `/compact focus on the auth refactor, drop test debugging`). Steer the summarizer rather than letting auto-compaction guess.
+- **Next step generates voluminous output** (codebase recon, large file scan, verification pass, parallel design variants) → spawn a subagent via the Agent tool. The child's intermediate output stays in its context; only the conclusion returns to yours. Mental model: *will I need this tool output again, or just the conclusion?*
+- **Approaching context limit** → run `~/.claude/skills/gstack/bin/gstack-detect-context-pressure` for guidance, or `/compact` proactively before auto-compaction kicks in.
+
+After `/compact` or `/clear`, the Context Recovery block above re-reads recent checkpoints, timeline events, and learnings — so resuming is cheap.
+
 ## AskUserQuestion Format
 
 **ALWAYS follow this structure for every AskUserQuestion call:**
@@ -1465,3 +1477,9 @@ If the review exits early before a real review completes (for example, no diff a
 - **Be terse.** One line problem, one line fix. No preamble.
 - **Only flag real problems.** Skip anything that's fine.
 - **Use Greptile reply templates from greptile-triage.md.** Every reply includes evidence. Never post vague replies.
+
+## Use Subagents Here
+
+For diffs > 500 lines or touching > 5 files, spawn parallel subagents: `security-reviewer`, `adversarial-reviewer`, and `explorer` (for unfamiliar areas of the codebase). Aggregate findings in the parent context.
+
+Available agents in `.claude/agents/`: `explorer`, `verifier`, `security-reviewer`, `adversarial-reviewer`. Spawn via the Agent tool and aggregate results in the parent context.

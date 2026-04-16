@@ -6,7 +6,7 @@
 import type { TemplateContext, ResolverFn } from './types';
 
 // Domain modules
-import { generatePreamble } from './preamble';
+import { generatePreamble, generateSubagentHintResolver } from './preamble';
 import { generateTestFailureTriage } from './preamble';
 import { generateCommandReference, generateSnapshotFlags, generateBrowseSetup } from './browse';
 import { generateDesignMethodology, generateDesignHardRules, generateDesignOutsideVoices, generateDesignReviewLite, generateDesignSketch, generateDesignSetup, generateDesignMockup, generateDesignShotgunLoop, generateUXPrinciples } from './design';
@@ -25,6 +25,7 @@ export const RESOLVERS: Record<string, ResolverFn> = {
   COMMAND_REFERENCE: generateCommandReference,
   SNAPSHOT_FLAGS: generateSnapshotFlags,
   PREAMBLE: generatePreamble,
+  SUBAGENT_HINT: generateSubagentHintResolver,
   BROWSE_SETUP: generateBrowseSetup,
   BASE_BRANCH_DETECT: generateBaseBranchDetect,
   QA_METHODOLOGY: generateQAMethodology,
