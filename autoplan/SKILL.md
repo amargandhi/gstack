@@ -124,6 +124,23 @@ if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; 
 fi
 # Session timeline: record skill start with runtime model (local-only, never sent anywhere)
 ~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"autoplan","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
+# Dynamic overlay (B1): if runtime model differs from build model and we have an
+# overlay for the runtime model, emit it as a system-reminder so the model gets
+# its own behavioral guidance without requiring a regeneration.
+_BUILD_MODEL="claude"
+if [ "$_RUNTIME_MODEL" != "unknown" ] && [ "$_RUNTIME_MODEL" != "$_BUILD_MODEL" ]; then
+  _OVERLAY_CONTENT=$(~/.claude/skills/gstack/bin/gstack-overlay-emit "$_RUNTIME_MODEL" 2>/dev/null || echo "")
+  if [ -n "$_OVERLAY_CONTENT" ]; then
+    echo ""
+    echo "<system-reminder>"
+    echo "Runtime model ($_RUNTIME_MODEL) differs from build model ($_BUILD_MODEL)."
+    echo "Applying runtime overlay so behavioral guidance matches your actual model."
+    echo "--- begin $_RUNTIME_MODEL overlay ---"
+    echo "$_OVERLAY_CONTENT"
+    echo "--- end overlay ---"
+    echo "</system-reminder>"
+  fi
+fi
 # Model gate — hard STOP if the runtime model is known to be unsuitable for this skill.
 # Only fires for models with explicit rules (currently: gpt-5.3-codex-spark on strategy/high-analysis).
 _GATE=$(~/.claude/skills/gstack/bin/gstack-model-gate "$_RUNTIME_MODEL" "autoplan" 2>/dev/null || echo "OK")
@@ -1044,6 +1061,27 @@ NEVER run phases in parallel — each builds on the previous.
 
 Between each phase, emit a phase-transition summary and verify that all required
 outputs from the prior phase are written before starting the next.
+
+## Per-phase model recommendations (informational)
+
+Each phase benefits from a different model's strengths. These are recommendations,
+not enforcement — the agent inherits the user's current model for Claude subagent
+spawns, and Codex invocations use whatever model Codex CLI defaults to. If the
+user wants maximum quality, they can manually switch models between phases or
+pin Codex's model via `-m` flag.
+
+| Phase | Anthropic recommendation | OpenAI recommendation | Why |
+|---|---|---|---|
+| CEO | `opus-4-7` with max effort | `gpt-5.3-codex` with xhigh | Strategy — novel scope, 10x reframings, max deliberation pays off |
+| Eng | `opus-4-6` or `opus-4-7` | `gpt-5.3-codex` with xhigh | Architecture + code-specialized reasoning |
+| Design | `sonnet-4-6` with high | `gpt-5.4` with medium | Design rubrics are clear; Sonnet/5.4 adaptive is cost-effective |
+| DX | `sonnet-4-6` with medium | `gpt-5.4` with medium | Judgment over depth — medium effort is plenty |
+
+**Surface these recommendations to the user at Phase 0.** If they're on a
+lower-tier model (e.g. Sonnet 4.5 or Spark), mention that CEO phase specifically
+would benefit from switching. Do not block — just inform. If Codex is available,
+the orchestration already dual-voices it for CEO/Eng phases, which gives the
+user cross-model consensus without requiring a switch.
 
 ---
 

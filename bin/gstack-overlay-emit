@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# gstack-overlay-emit — cat the matching model-overlays/<model>.md file,
+# resolving the {{INHERIT:...}} chain.
+#
+# Usage: gstack-overlay-emit <model>
+# Output: overlay markdown (inherit chain resolved) on stdout
+# Exit 0 always. Missing overlay → empty stdout.
+#
+# Mirrors scripts/resolvers/model-overlay.ts readOverlay() logic. Keep them
+# in sync — tests/model-overlay.test.ts verifies parity.
+
+set -euo pipefail
+
+MODEL="${1:-}"
+[ -z "$MODEL" ] && exit 0
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# model-overlays lives at repo root; bin is one level down
+OVERLAY_DIR="$(cd "$SCRIPT_DIR/../model-overlays" 2>/dev/null && pwd)" || exit 0
+
+# Walk INHERIT chain, accumulating content base-first. Prevent cycles.
+_seen=""
+_model="$MODEL"
+_chain=""
+
+while [ -n "$_model" ]; do
+  case " $_seen " in
+    *" $_model "*) break ;;  # cycle
+  esac
+  _seen="$_seen $_model"
+  _file="$OVERLAY_DIR/$_model.md"
+  [ -f "$_file" ] || break
+
+  # Check for {{INHERIT:X}} on first non-empty line
+  _first=$(head -1 "$_file")
+  if printf '%s' "$_first" | grep -qE '^\{\{INHERIT:[a-z0-9._-]+\}\}$'; then
+    _parent=$(printf '%s' "$_first" | sed -E 's/^\{\{INHERIT:([a-z0-9._-]+)\}\}$/\1/')
+    # Prepend current file content (without the INHERIT line) to chain
+    _rest=$(tail -n +2 "$_file")
+    _chain=$(printf '%s\n\n%s' "$_rest" "$_chain")
+    _model="$_parent"
+  else
+    # Terminal: full file content goes to the front
+    _chain=$(printf '%s\n\n%s' "$(cat "$_file")" "$_chain")
+    break
+  fi
+done
+
+# Trim trailing empty lines
+printf '%s' "$_chain" | awk 'NF{p=1} p{print}' | awk 'BEGIN{blank=0} /^$/{blank++; next} {while(blank--) print ""; blank=0; print}'

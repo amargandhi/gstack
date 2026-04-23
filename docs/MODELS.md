@@ -203,15 +203,137 @@ env -i HOME=$HOME bin/gstack-detect-host                               # → unk
 
 ---
 
+## Enforcement layer (Phase A)
+
+Beyond recommendations, gstack now **enforces** model-appropriate behavior
+via runtime guardrails:
+
+### Auto-escalation (`bin/gstack-model-gate`)
+
+The preamble checks every skill invocation against `scripts/model-gate-rules.ts`.
+If the (runtime model, skill) pairing is known-bad, a `<system-reminder>` block
+tells the agent to STOP and recommend switching. Current rules:
+
+- `gpt-5.3-codex-spark` + any `strategy` skill (plan-ceo-review, autoplan,
+  office-hours) → HARD STOP, suggest `gpt-5.3-codex`
+- `gpt-5.3-codex-spark` + `high`/`max` analysis bucket (investigate, cso, review)
+  → same treatment
+
+Add new rules to `scripts/model-gate-rules.ts` and mirror in
+`bin/gstack-model-gate` bash.
+
+### Subagent model pinning (`.claude/agents/*.md`)
+
+Each of the 4 project subagents pins a model appropriate to its task:
+
+- `explorer` → `haiku` — cheap "map, don't fix" recon
+- `verifier` / `security-reviewer` / `adversarial-reviewer` → `sonnet` —
+  adaptive thinking, balanced quality-per-cost
+
+`scripts/subagent-model-map.ts` is the source of truth.
+`test/subagent-model-pinning.test.ts` guards against drift.
+
+### Codex effort routing (`bin/gstack-codex-effort`)
+
+When `/codex` is invoked from another gstack skill (autoplan etc.), the outer
+skill exports `CALLING_SKILL=<name>`. `/codex` reads it and picks effort from
+the outer skill's thinking bucket, not just its own mode default:
+
+- `/ship` calling `/codex` → medium (execution bucket)
+- `/autoplan` calling `/codex` → xhigh (strategy bucket, upgraded from high)
+- Direct `/codex <prompt>` with no env var set → mode default (backward compat)
+
+### Output format tuning (`{{OUTPUT_FORMAT_HINT}}`)
+
+Per-model format directives (terse for GPT-5.4, structured for Opus, minimal
+for Spark). Opt-in via placeholder in: review, investigate, plan-ceo-review,
+plan-eng-review, cso.
+
+## Measurement + learning (Phase B)
+
+### Timeline now tracks model
+
+Every skill invocation's timeline entry now includes `model` and `host` fields.
+This feeds three downstream tools:
+
+### `bin/gstack-model-stats`
+Aggregate per (skill, model): started, completed, rate, median duration.
+```bash
+gstack-model-stats               # all skills, current project
+gstack-model-stats review        # one skill
+gstack-model-stats --global      # across all projects
+gstack-model-stats --json        # machine-readable
+```
+
+### `bin/gstack-model-recommend <skill>`
+After ≥5 runs per model, surfaces data-driven suggestions:
+```
+Recommendation: opus-4-7
+  Rate: 100% across 7 runs.
+  vs sonnet-4-6: 30 pp higher success rate.
+```
+Requires timeline data (A6 must have shipped).
+
+### `bin/gstack-cost-report`
+Estimates USD per (skill, model) using `scripts/model-pricing.ts` (Apr 2026
+snapshot). Token counts from harness when available; per-skill estimates
+otherwise.
+```bash
+gstack-cost-report                  # current project
+gstack-cost-report --global
+gstack-cost-report --skill review
+gstack-cost-report --branch main
+```
+
+## Dynamic overlay at runtime (B1)
+
+When `$_RUNTIME_MODEL` differs from the build-time `--model`, the preamble now
+emits the matching overlay as a `<system-reminder>` block at skill start. This
+means users who don't regenerate gstack every time they swap models still get
+model-specific guidance automatically.
+
+Flow:
+1. Preamble runs `gstack-detect-model` → `_RUNTIME_MODEL`
+2. If that differs from build-time `${ctx.model}` AND an overlay file exists,
+   `gstack-overlay-emit $_RUNTIME_MODEL` cats the overlay (with `{{INHERIT}}`
+   chain resolved).
+3. Output goes inside `<system-reminder>` tags — not in the cached prompt
+   prefix, so it's cache-safe.
+
+## Composed multi-model workflows (B3)
+
+`/autoplan` now documents per-phase model recommendations in prose:
+
+- **CEO phase**: Opus 4.7 with max effort (or GPT-5.3-Codex with xhigh)
+- **Eng phase**: Opus 4.6/4.7 or GPT-5.3-Codex — coding-specialized
+- **Design phase**: Sonnet 4.6 or GPT-5.4 — clear rubrics, adaptive is enough
+- **DX phase**: Sonnet 4.6 or GPT-5.4 at medium — judgment over depth
+
+Full recommendation matrix in `scripts/subagent-model-map.ts`
+`ORCHESTRATION_PHASES` table. Surfaced at Phase 0 of autoplan.
+
+## Multi-model benchmark (B5 — optional)
+
+`test/skill-e2e-multi-model.test.ts` runs the same skill scenario across
+multiple models to validate `scripts/thinking-profiles.ts` bucket
+recommendations empirically.
+
+**Double-gated** to prevent accidental runs:
+```bash
+EVALS=1 GSTACK_BENCH_MATRIX=1 bun test test/skill-e2e-multi-model.test.ts
+```
+
+Cost: ~$60 per full matrix (5 models × 3 skills). Writes
+`docs/MODEL_BENCHMARKS.md`. Use `scripts/bench-matrix.ts` to re-render from
+stored results without re-running.
+
 ## Future enhancements
 
-- **Overlay switching at runtime** — today overlays are baked in. A future
-  enhancement could dynamically select the right overlay based on
-  `$_RUNTIME_MODEL`, avoiding the regeneration step when the user switches
-  models inside Claude Code via `/model`.
-- **Host-specific skill variants without regeneration** — single SKILL.md tree
-  with runtime host branching for the small delta between host behaviors.
-
-If your team uses a specific model consistently, generate for it and treat
-gstack as tuned-for-that-model. If you use multiple models, the overlays + the
-runtime probe let you catch most mismatches early.
+- **Per-subagent model overrides** via the Agent tool's optional `model`
+  parameter (today we use `subagent_type`; future Claude Code versions may
+  accept explicit model selection).
+- **Runtime tool allowlist filtering** — currently a skip (A4 cut from plan).
+  Would block Spark from using Agent tool since orchestration overhead eats
+  its speed advantage. Add when someone actually hits the case.
+- **Quality scoring in benchmark harness** — layer `llm-judge.ts` output onto
+  the pass-rate metric for semantic comparison, not just completion.

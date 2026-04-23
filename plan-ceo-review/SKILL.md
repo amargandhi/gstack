@@ -122,6 +122,23 @@ if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; 
 fi
 # Session timeline: record skill start with runtime model (local-only, never sent anywhere)
 ~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"plan-ceo-review","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
+# Dynamic overlay (B1): if runtime model differs from build model and we have an
+# overlay for the runtime model, emit it as a system-reminder so the model gets
+# its own behavioral guidance without requiring a regeneration.
+_BUILD_MODEL="claude"
+if [ "$_RUNTIME_MODEL" != "unknown" ] && [ "$_RUNTIME_MODEL" != "$_BUILD_MODEL" ]; then
+  _OVERLAY_CONTENT=$(~/.claude/skills/gstack/bin/gstack-overlay-emit "$_RUNTIME_MODEL" 2>/dev/null || echo "")
+  if [ -n "$_OVERLAY_CONTENT" ]; then
+    echo ""
+    echo "<system-reminder>"
+    echo "Runtime model ($_RUNTIME_MODEL) differs from build model ($_BUILD_MODEL)."
+    echo "Applying runtime overlay so behavioral guidance matches your actual model."
+    echo "--- begin $_RUNTIME_MODEL overlay ---"
+    echo "$_OVERLAY_CONTENT"
+    echo "--- end overlay ---"
+    echo "</system-reminder>"
+  fi
+fi
 # Model gate — hard STOP if the runtime model is known to be unsuitable for this skill.
 # Only fires for models with explicit rules (currently: gpt-5.3-codex-spark on strategy/high-analysis).
 _GATE=$(~/.claude/skills/gstack/bin/gstack-model-gate "$_RUNTIME_MODEL" "plan-ceo-review" 2>/dev/null || echo "OK")

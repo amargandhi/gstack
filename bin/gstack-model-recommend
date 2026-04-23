@@ -1,0 +1,179 @@
+#!/usr/bin/env bun
+/**
+ * gstack-model-recommend — data-driven model recommendation from timeline history.
+ *
+ * Given a skill, groups past runs by model and emits a suggestion when the
+ * sample size is meaningful (n >= 5 per model, 2+ distinct models for comparison).
+ *
+ * Usage:
+ *   gstack-model-recommend <skill>          this project, per-model comparison
+ *   gstack-model-recommend <skill> --global aggregate across all projects
+ *   gstack-model-recommend <skill> --json   machine-readable
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+const GSTACK_HOME = process.env.GSTACK_HOME || path.join(process.env.HOME || '', '.gstack');
+const PROJECTS_DIR = path.join(GSTACK_HOME, 'projects');
+const MIN_SAMPLE = 5; // per-model minimum before recommending
+
+interface TimelineEntry {
+  skill?: string;
+  event?: string;
+  model?: string;
+  outcome?: string;
+  duration_s?: number;
+  session?: string;
+  ts?: string;
+}
+
+function readTimelines(global = false): { slug: string; entries: TimelineEntry[] }[] {
+  if (!fs.existsSync(PROJECTS_DIR)) return [];
+  const cwd = process.cwd();
+  const result: { slug: string; entries: TimelineEntry[] }[] = [];
+  for (const slug of fs.readdirSync(PROJECTS_DIR)) {
+    const tl = path.join(PROJECTS_DIR, slug, 'timeline.jsonl');
+    if (!fs.existsSync(tl)) continue;
+    const entries: TimelineEntry[] = [];
+    for (const line of fs.readFileSync(tl, 'utf-8').split('\n')) {
+      if (!line.trim()) continue;
+      try { entries.push(JSON.parse(line)); } catch {}
+    }
+    result.push({ slug, entries });
+  }
+  if (global) return result;
+  // Current project only: match slug to current repo
+  const currentSlug = path.basename(cwd).replace(/[^a-zA-Z0-9._-]/g, '-');
+  // Best-effort match against any slug that contains the repo name
+  return result.filter(r => r.slug.includes(currentSlug) || r.slug === currentSlug);
+}
+
+interface ModelStats {
+  model: string;
+  samples: number;
+  completed: number;
+  failed: number;
+  median_duration_s: number | null;
+  completion_rate: number;
+}
+
+function median(nums: number[]): number | null {
+  if (nums.length === 0) return null;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+function analyze(entries: TimelineEntry[], skill: string): ModelStats[] {
+  const byModel = new Map<string, { started: number; completed: number; failed: number; durations: number[] }>();
+  const sessionEnds = new Map<string, { start?: number; end?: number; outcome?: string; model?: string }>();
+
+  for (const e of entries) {
+    if (e.skill !== skill) continue;
+    const model = e.model || 'unknown';
+    if (!byModel.has(model)) byModel.set(model, { started: 0, completed: 0, failed: 0, durations: [] });
+    const b = byModel.get(model)!;
+    if (e.event === 'started') b.started++;
+    if (e.event === 'completed') {
+      b.completed++;
+      if (typeof e.duration_s === 'number') b.durations.push(e.duration_s);
+      if (e.outcome === 'failed' || e.outcome === 'blocked') b.failed++;
+    }
+    // Session-pair durations fallback
+    if (e.session && e.ts) {
+      const rec = sessionEnds.get(e.session) || {};
+      if (e.event === 'started') rec.start = new Date(e.ts).getTime();
+      if (e.event === 'completed') { rec.end = new Date(e.ts).getTime(); rec.outcome = e.outcome; }
+      rec.model = model;
+      sessionEnds.set(e.session, rec);
+    }
+  }
+
+  // Fill missing durations
+  for (const rec of sessionEnds.values()) {
+    if (rec.start && rec.end && rec.model) {
+      const b = byModel.get(rec.model);
+      if (b && b.durations.length < b.completed) {
+        b.durations.push(Math.round((rec.end - rec.start) / 1000));
+      }
+    }
+  }
+
+  const stats: ModelStats[] = [];
+  for (const [model, b] of byModel) {
+    if (model === 'unknown') continue;
+    stats.push({
+      model,
+      samples: Math.max(b.started, b.completed),
+      completed: b.completed,
+      failed: b.failed,
+      median_duration_s: median(b.durations),
+      completion_rate: b.started > 0 ? b.completed / b.started : 0,
+    });
+  }
+  return stats.sort((a, b) => b.completion_rate - a.completion_rate);
+}
+
+// ─── Parse args ────────────────────────────────────────
+const args = process.argv.slice(2);
+if (args.length === 0 || args[0].startsWith('-')) {
+  console.log('Usage: gstack-model-recommend <skill> [--global] [--json]');
+  process.exit(args.length === 0 ? 1 : 0);
+}
+const skill = args[0];
+const isGlobal = args.includes('--global');
+const isJson = args.includes('--json');
+
+const sources = readTimelines(isGlobal);
+const allEntries = sources.flatMap(s => s.entries);
+const stats = analyze(allEntries, skill);
+
+if (isJson) {
+  console.log(JSON.stringify({ skill, scope: isGlobal ? 'global' : 'current-project', stats }, null, 2));
+  process.exit(0);
+}
+
+console.log(`\n── gstack-model-recommend /${skill} ${isGlobal ? '(global)' : '(current project)'} ──\n`);
+
+if (stats.length === 0) {
+  console.log(`No timeline data for /${skill} yet.`);
+  console.log('Run this skill a few times under different models, then re-query.');
+  process.exit(0);
+}
+
+if (stats.length === 1) {
+  const s = stats[0];
+  console.log(`Only one model seen: ${s.model} (${s.samples} samples).`);
+  console.log('Try the same skill under a different model for comparison.');
+  process.exit(0);
+}
+
+// Print per-model stats
+console.log('model                    samples  completed  rate     median   failed');
+console.log('───────────────────────────────────────────────────────────────────────');
+for (const s of stats) {
+  const rate = (s.completion_rate * 100).toFixed(0) + '%';
+  const med = s.median_duration_s !== null ? `${s.median_duration_s}s` : '-';
+  const model = s.model.padEnd(24);
+  const samples = String(s.samples).padEnd(9);
+  const completed = String(s.completed).padEnd(11);
+  const rateStr = rate.padEnd(9);
+  const medStr = med.padEnd(9);
+  console.log(`${model} ${samples} ${completed} ${rateStr} ${medStr} ${s.failed}`);
+}
+
+// Recommendation
+const eligible = stats.filter(s => s.samples >= MIN_SAMPLE);
+if (eligible.length === 0) {
+  console.log(`\nNot enough data yet — need ≥${MIN_SAMPLE} samples per model for a recommendation.`);
+} else {
+  const best = eligible[0];
+  const worst = eligible[eligible.length - 1];
+  console.log(`\nRecommendation: ${best.model}`);
+  console.log(`  Rate: ${(best.completion_rate * 100).toFixed(0)}% across ${best.samples} runs.`);
+  if (eligible.length > 1 && best.completion_rate - worst.completion_rate > 0.2) {
+    console.log(`  vs ${worst.model}: ${((best.completion_rate - worst.completion_rate) * 100).toFixed(0)} pp higher success rate.`);
+  }
+}
+console.log('');

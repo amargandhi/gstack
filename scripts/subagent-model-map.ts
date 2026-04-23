@@ -62,3 +62,52 @@ export const SUBAGENT_MODEL_MAP: Record<string, SubagentPin> = {
 export function getSubagentPin(name: string): SubagentPin | null {
   return SUBAGENT_MODEL_MAP[name] ?? null;
 }
+
+// ─── Orchestration phase recommendations (B3) ─────────────────
+//
+// These are per-phase model recommendations for multi-phase workflows like
+// /autoplan. They do NOT pin the Agent tool directly (that uses the
+// subagent_type frontmatter above) — instead they inform the autoplan prose
+// so the agent knows which model is optimal for each phase and can
+// recommend switching before starting or delegate to codex for that phase.
+
+export interface OrchestrationPhase {
+  phase: string;
+  suggestAnthropic: string;   // claude model family recommendation
+  suggestOpenAI: string;      // gpt/codex family recommendation
+  rationale: string;
+}
+
+export const ORCHESTRATION_PHASES: OrchestrationPhase[] = [
+  {
+    phase: 'autoplan.ceo',
+    suggestAnthropic: 'opus-4-7',
+    suggestOpenAI: 'gpt-5.3-codex',
+    rationale: 'CEO/strategy review — max effort pays off. Novel problems, scope trade-offs, 10x reframings.',
+  },
+  {
+    phase: 'autoplan.eng',
+    suggestAnthropic: 'opus-4-6',
+    suggestOpenAI: 'gpt-5.3-codex',
+    rationale: 'Eng architecture review — coding-specialized models shine here. 5.3-codex with xhigh catches real issues.',
+  },
+  {
+    phase: 'autoplan.design',
+    suggestAnthropic: 'sonnet-4-6',
+    suggestOpenAI: 'gpt-5.4',
+    rationale: 'Design review has clear rubrics — Sonnet 4.6 adaptive is cost-effective.',
+  },
+  {
+    phase: 'autoplan.devex',
+    suggestAnthropic: 'sonnet-4-6',
+    suggestOpenAI: 'gpt-5.4',
+    rationale: 'DevEx review — judgment over depth. Sonnet 4.6 or GPT-5.4 at medium effort is plenty.',
+  },
+  {
+    phase: 'ship.review',
+    suggestAnthropic: 'sonnet-4-6',
+    suggestOpenAI: 'gpt-5.3-codex',
+    rationale: 'Pre-landing review — structural issues. Sonnet catches them; Codex is specialized for code review.',
+  },
+];
+

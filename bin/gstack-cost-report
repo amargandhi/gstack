@@ -1,0 +1,157 @@
+#!/usr/bin/env bun
+/**
+ * gstack-cost-report — estimate USD spent per (skill, model) from timeline.
+ *
+ * Timeline entries don't carry token counts today (harness doesn't expose
+ * them to bash). This tool uses a per-skill default token profile as a
+ * rough estimator; when token counts ARE present in the entry, those take
+ * precedence.
+ *
+ * Goal: trend detection and relative comparison, not billing accuracy.
+ *
+ * Usage:
+ *   gstack-cost-report                     current project
+ *   gstack-cost-report --global            all projects
+ *   gstack-cost-report --skill review      filter to one skill
+ *   gstack-cost-report --branch <name>     filter to one branch
+ *   gstack-cost-report --json              machine-readable
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+import { MODEL_PRICING, estimateCostUsd } from '../scripts/model-pricing';
+
+const GSTACK_HOME = process.env.GSTACK_HOME || path.join(process.env.HOME || '', '.gstack');
+const PROJECTS_DIR = path.join(GSTACK_HOME, 'projects');
+
+interface TimelineEntry {
+  skill?: string;
+  event?: string;
+  branch?: string;
+  model?: string;
+  duration_s?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  ts?: string;
+}
+
+// Per-skill token estimates. Used when the entry doesn't carry explicit
+// token counts. Calibrated from observed gstack runs; refine over time.
+const SKILL_TOKEN_ESTIMATE: Record<string, { input: number; output: number }> = {
+  'plan-ceo-review': { input: 25_000, output: 15_000 },
+  'plan-eng-review': { input: 25_000, output: 15_000 },
+  'plan-design-review': { input: 20_000, output: 12_000 },
+  autoplan: { input: 50_000, output: 30_000 },
+  'office-hours': { input: 15_000, output: 10_000 },
+  investigate: { input: 20_000, output: 8_000 },
+  cso: { input: 30_000, output: 15_000 },
+  review: { input: 15_000, output: 6_000 },
+  qa: { input: 40_000, output: 12_000 },
+  ship: { input: 20_000, output: 5_000 },
+  'land-and-deploy': { input: 10_000, output: 3_000 },
+  retro: { input: 15_000, output: 10_000 },
+  'design-review': { input: 20_000, output: 8_000 },
+  health: { input: 8_000, output: 3_000 },
+  canary: { input: 10_000, output: 3_000 },
+  benchmark: { input: 8_000, output: 3_000 },
+  browse: { input: 3_000, output: 1_000 },
+  DEFAULT: { input: 10_000, output: 5_000 },
+};
+
+function estimate(entry: TimelineEntry): number | null {
+  if (!entry.model || !entry.skill) return null;
+  const inTok = entry.input_tokens ?? SKILL_TOKEN_ESTIMATE[entry.skill]?.input ?? SKILL_TOKEN_ESTIMATE.DEFAULT.input;
+  const outTok = entry.output_tokens ?? SKILL_TOKEN_ESTIMATE[entry.skill]?.output ?? SKILL_TOKEN_ESTIMATE.DEFAULT.output;
+  return estimateCostUsd(entry.model, inTok, outTok);
+}
+
+function readTimelines(global: boolean): TimelineEntry[] {
+  if (!fs.existsSync(PROJECTS_DIR)) return [];
+  const entries: TimelineEntry[] = [];
+  const projects = fs.readdirSync(PROJECTS_DIR);
+  const cwdSlug = path.basename(process.cwd()).replace(/[^a-zA-Z0-9._-]/g, '-');
+
+  for (const slug of projects) {
+    if (!global && !slug.includes(cwdSlug) && slug !== cwdSlug) continue;
+    const tl = path.join(PROJECTS_DIR, slug, 'timeline.jsonl');
+    if (!fs.existsSync(tl)) continue;
+    for (const line of fs.readFileSync(tl, 'utf-8').split('\n')) {
+      if (!line.trim()) continue;
+      try { entries.push(JSON.parse(line)); } catch {}
+    }
+  }
+  return entries;
+}
+
+// ─── Parse args ────────────────────────────────────────
+const args = process.argv.slice(2);
+const isGlobal = args.includes('--global');
+const isJson = args.includes('--json');
+const skillArg = args.indexOf('--skill') >= 0 ? args[args.indexOf('--skill') + 1] : null;
+const branchArg = args.indexOf('--branch') >= 0 ? args[args.indexOf('--branch') + 1] : null;
+
+const entries = readTimelines(isGlobal)
+  .filter(e => e.event === 'completed' || e.event === 'started')
+  .filter(e => !skillArg || e.skill === skillArg)
+  .filter(e => !branchArg || e.branch === branchArg);
+
+// Dedup: count each session's COMPLETED once; if no completed, use started.
+const bySession = new Map<string, TimelineEntry>();
+for (const e of entries) {
+  if (!e.ts) continue;
+  const sess = (e as any).session || `${e.skill}-${e.ts}`;
+  const existing = bySession.get(sess);
+  if (!existing || e.event === 'completed') bySession.set(sess, e);
+}
+
+const unique = [...bySession.values()];
+
+// Aggregate by (skill, model)
+interface Row { skill: string; model: string; runs: number; usd: number; }
+const agg = new Map<string, Row>();
+let totalUsd = 0;
+
+for (const e of unique) {
+  if (!e.skill || !e.model) continue;
+  const key = `${e.skill}__${e.model}`;
+  const cost = estimate(e);
+  if (cost === null) continue;
+  if (!agg.has(key)) agg.set(key, { skill: e.skill, model: e.model, runs: 0, usd: 0 });
+  const r = agg.get(key)!;
+  r.runs++;
+  r.usd += cost;
+  totalUsd += cost;
+}
+
+if (isJson) {
+  console.log(JSON.stringify({
+    scope: isGlobal ? 'global' : 'current-project',
+    skill: skillArg,
+    branch: branchArg,
+    total_usd: totalUsd,
+    rows: [...agg.values()].sort((a, b) => b.usd - a.usd),
+  }, null, 2));
+  process.exit(0);
+}
+
+console.log(`\n── gstack-cost-report ${isGlobal ? '(global)' : '(current project)'}${skillArg ? ` /${skillArg}` : ''}${branchArg ? ` @${branchArg}` : ''} ──\n`);
+
+if (agg.size === 0) {
+  console.log('No cost data. Run skills to populate timeline, then re-query.');
+  console.log('Note: cost estimates use per-skill token defaults — refine via `--input-tokens` / `--output-tokens` in future.');
+  process.exit(0);
+}
+
+console.log('skill                   model                   runs   est. USD');
+console.log('──────────────────────────────────────────────────────────────────');
+for (const r of [...agg.values()].sort((a, b) => b.usd - a.usd)) {
+  const skill = ('/' + r.skill).padEnd(23);
+  const model = r.model.padEnd(23);
+  const runs = String(r.runs).padEnd(6);
+  const usd = `$${r.usd.toFixed(2)}`;
+  console.log(`${skill} ${model} ${runs} ${usd}`);
+}
+console.log('──────────────────────────────────────────────────────────────────');
+console.log(`Total: $${totalUsd.toFixed(2)}`);
+console.log('\nNote: estimates use per-skill token defaults (not actual usage).');
+console.log('Pricing snapshot: April 2026 — refresh scripts/model-pricing.ts as needed.\n');
