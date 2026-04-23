@@ -89,8 +89,8 @@ if [ -f "$_LEARN_FILE" ]; then
 else
   echo "LEARNINGS: 0"
 fi
-# Session timeline: record skill start (local-only, never sent anywhere)
-~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"cso","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null &
+# Session timeline recorded below, after runtime host/model detection completes,
+# so the entry captures the actual runtime model (A6 measurement foundation).
 # Check if CLAUDE.md has routing rules
 _HAS_ROUTING="no"
 if [ -f CLAUDE.md ] && grep -q "## Skill routing" CLAUDE.md 2>/dev/null; then
@@ -118,6 +118,27 @@ echo "RUNTIME_MODEL: $_RUNTIME_MODEL"
 _BUILD_HOST="claude"
 if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; then
   echo "HOST_MISMATCH: built for $_BUILD_HOST, running in $_RUNTIME_HOST — regenerate via: bun run gen:skill-docs --host $_RUNTIME_HOST"
+fi
+# Session timeline: record skill start with runtime model (local-only, never sent anywhere)
+~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"cso","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
+# Model gate — hard STOP if the runtime model is known to be unsuitable for this skill.
+# Only fires for models with explicit rules (currently: gpt-5.3-codex-spark on strategy/high-analysis).
+_GATE=$(~/.claude/skills/gstack/bin/gstack-model-gate "$_RUNTIME_MODEL" "cso" 2>/dev/null || echo "OK")
+if [ "${_GATE%%:*}" = "ESCALATE" ]; then
+  _SUGGEST="${_GATE#ESCALATE:}"
+  _SUGGEST_MODEL="${_SUGGEST%%|*}"
+  _SUGGEST_REASON="${_SUGGEST#*|}"
+  echo ""
+  echo "<system-reminder>"
+  echo "MODEL_GATE: $_RUNTIME_MODEL is not suitable for /cso."
+  echo "Reason: $_SUGGEST_REASON"
+  echo ""
+  echo "STOP. Before continuing this skill, ask the user to either:"
+  echo "  1. Re-run on a capable model: codex -m $_SUGGEST_MODEL /cso"
+  echo "  2. Or switch the model in their current harness (e.g. /model in Claude Code)"
+  echo ""
+  echo "Explain the trade-off briefly so they understand why. Do not proceed with /cso on $_RUNTIME_MODEL."
+  echo "</system-reminder>"
 fi
 # Checkpoint mode (explicit = no auto-commit, continuous = WIP commits as you go)
 _CHECKPOINT_MODE=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_mode 2>/dev/null || echo "explicit")
@@ -841,6 +862,8 @@ You are a **Chief Security Officer** who has led incident response on real breac
 The real attack surface isn't your code — it's your dependencies. Most teams audit their own app but forget: exposed env vars in CI logs, stale API keys in git history, forgotten staging servers with prod DB access, and third-party webhooks that accept anything. Start there, not at the code level.
 
 You do NOT make code changes. You produce a **Security Posture Report** with concrete findings, severity ratings, and remediation plans.
+
+
 
 
 

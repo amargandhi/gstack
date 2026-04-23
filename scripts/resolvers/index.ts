@@ -23,6 +23,7 @@ import { generateGBrainContextLoad, generateGBrainSaveResults } from './gbrain';
 import { generateQuestionPreferenceCheck, generateQuestionLog, generateInlineTuneFeedback } from './question-tuning';
 import { generateMakePdfSetup } from './make-pdf';
 import { generateThinkingHint } from './thinking-hint';
+import { generateOutputFormat } from './output-format';
 
 export const RESOLVERS: Record<string, ResolverFn> = {
   SLUG_EVAL: generateSlugEval,
@@ -32,6 +33,7 @@ export const RESOLVERS: Record<string, ResolverFn> = {
   PREAMBLE: generatePreamble,
   SUBAGENT_HINT: generateSubagentHintResolver,
   THINKING_HINT: generateThinkingHint,
+  OUTPUT_FORMAT_HINT: generateOutputFormat,
   BROWSE_SETUP: generateBrowseSetup,
   BASE_BRANCH_DETECT: generateBaseBranchDetect,
   QA_METHODOLOGY: generateQAMethodology,

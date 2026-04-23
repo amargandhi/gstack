@@ -86,8 +86,8 @@ if [ -f "$_LEARN_FILE" ]; then
 else
   echo "LEARNINGS: 0"
 fi
-# Session timeline: record skill start (local-only, never sent anywhere)
-~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"codex","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null &
+# Session timeline recorded below, after runtime host/model detection completes,
+# so the entry captures the actual runtime model (A6 measurement foundation).
 # Check if CLAUDE.md has routing rules
 _HAS_ROUTING="no"
 if [ -f CLAUDE.md ] && grep -q "## Skill routing" CLAUDE.md 2>/dev/null; then
@@ -115,6 +115,27 @@ echo "RUNTIME_MODEL: $_RUNTIME_MODEL"
 _BUILD_HOST="claude"
 if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; then
   echo "HOST_MISMATCH: built for $_BUILD_HOST, running in $_RUNTIME_HOST — regenerate via: bun run gen:skill-docs --host $_RUNTIME_HOST"
+fi
+# Session timeline: record skill start with runtime model (local-only, never sent anywhere)
+~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"codex","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
+# Model gate — hard STOP if the runtime model is known to be unsuitable for this skill.
+# Only fires for models with explicit rules (currently: gpt-5.3-codex-spark on strategy/high-analysis).
+_GATE=$(~/.claude/skills/gstack/bin/gstack-model-gate "$_RUNTIME_MODEL" "codex" 2>/dev/null || echo "OK")
+if [ "${_GATE%%:*}" = "ESCALATE" ]; then
+  _SUGGEST="${_GATE#ESCALATE:}"
+  _SUGGEST_MODEL="${_SUGGEST%%|*}"
+  _SUGGEST_REASON="${_SUGGEST#*|}"
+  echo ""
+  echo "<system-reminder>"
+  echo "MODEL_GATE: $_RUNTIME_MODEL is not suitable for /codex."
+  echo "Reason: $_SUGGEST_REASON"
+  echo ""
+  echo "STOP. Before continuing this skill, ask the user to either:"
+  echo "  1. Re-run on a capable model: codex -m $_SUGGEST_MODEL /codex"
+  echo "  2. Or switch the model in their current harness (e.g. /model in Claude Code)"
+  echo ""
+  echo "Explain the trade-off briefly so they understand why. Do not proceed with /codex on $_RUNTIME_MODEL."
+  echo "</system-reminder>"
 fi
 # Checkpoint mode (explicit = no auto-commit, continuous = WIP commits as you go)
 _CHECKPOINT_MODE=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_mode 2>/dev/null || echo "explicit")
@@ -896,12 +917,28 @@ assumptions, catches things you might miss. Present its output faithfully, not s
 
 ---
 
-## Step 0: Check codex binary
+## Step 0: Check codex binary + resolve effort
 
 ```bash
 CODEX_BIN=$(which codex 2>/dev/null || echo "")
 [ -z "$CODEX_BIN" ] && echo "NOT_FOUND" || echo "FOUND: $CODEX_BIN"
+
+# Resolve reasoning_effort. Priority:
+#   1. --xhigh flag in user input → xhigh
+#   2. $CALLING_SKILL env set by outer gstack skill → bucket-derived effort
+#   3. Per-mode defaults in the mode-specific sections below
+# Assign to $_EFFORT; each mode's code block uses it.
+_EFFORT=""
+if [ -n "${CALLING_SKILL:-}" ]; then
+  _EFFORT=$(~/.claude/skills/gstack/bin/gstack-codex-effort "$CALLING_SKILL" 2>/dev/null || echo "")
+fi
+echo "CODEX_EFFORT_RESOLVED: ${_EFFORT:-(use mode default)} (calling_skill=${CALLING_SKILL:-none})"
 ```
+
+**When using `-c 'model_reasoning_effort="..."'` in the code blocks below:**
+- If `$_EFFORT` is non-empty, use it: `-c 'model_reasoning_effort="'"$_EFFORT"'"'`
+- If `$_EFFORT` is empty, use the mode's default (high for review/challenge, medium for consult)
+- If the user passed `--xhigh`, override to `xhigh` regardless
 
 If `NOT_FOUND`: stop and tell the user:
 "Codex CLI not found. Install it: `npm install -g @openai/codex` or see https://github.com/openai/codex"
@@ -971,13 +1008,22 @@ Parse the user's input to determine which mode to run:
    - Otherwise, ask: "What would you like to ask Codex?"
 4. `/codex <anything else>` — **Consult mode** (Step 2C), where the remaining text is the prompt
 
-**Reasoning effort override:** If the user's input contains `--xhigh` anywhere,
-note it and remove it from the prompt text before passing to Codex. When `--xhigh`
-is present, use `model_reasoning_effort="xhigh"` for all modes regardless of the
-per-mode default below. Otherwise, use the per-mode defaults:
-- Review (2A): `high` — bounded diff input, needs thoroughness
-- Challenge (2B): `high` — adversarial but bounded by diff
-- Consult (2C): `medium` — large context, interactive, needs speed
+**Reasoning effort resolution order:**
+
+1. If the user's input contains `--xhigh`, note it and strip it from the prompt text. Use `xhigh` for all modes.
+2. Else if the env var `$CALLING_SKILL` is set (another gstack skill invoked this), derive effort from the calling skill's thinking bucket:
+   ```bash
+   _EFFORT=$(${ctx.paths.binDir}/gstack-codex-effort "${CALLING_SKILL:-}" 2>/dev/null || echo "")
+   ```
+   - `/ship` → `medium` (mechanical workflow, effort matches outer bucket)
+   - `/autoplan`, `/plan-ceo-review` → `xhigh` (strategy needs depth)
+   - `/qa` → `medium` / `/investigate` → `high` (tracks the outer stakes)
+3. Else fall back to the per-mode default:
+   - Review (2A): `high` — bounded diff input, needs thoroughness
+   - Challenge (2B): `high` — adversarial but bounded by diff
+   - Consult (2C): `medium` — large context, interactive, needs speed
+
+Direct `/codex` invocations (no `$CALLING_SKILL` set) preserve today's behavior.
 
 ---
 

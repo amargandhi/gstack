@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# gstack-codex-effort — map calling skill → codex reasoning_effort.
+#
+# Usage: gstack-codex-effort <calling-skill>
+# Output: one of "minimal|none|low|medium|high|xhigh"
+# Exit 0 always (advisory — /codex falls back to mode defaults on any error).
+#
+# The bucket-to-effort mapping mirrors scripts/resolvers/thinking-hint.ts
+# and scripts/thinking-profiles.ts. Effort escalates based on the OUTER
+# skill's deliberation requirement, not /codex's own mode.
+#
+# Examples:
+#   ship → medium bucket → "medium" (mechanical workflow, save cost)
+#   autoplan → high bucket (upgradeable to max) → "xhigh"
+#   qa → medium bucket → "medium"
+#   plan-ceo-review → high bucket → "xhigh"
+#   (empty / unknown skill) → "high" (safe default)
+
+set -euo pipefail
+
+CALLING_SKILL="${1:-}"
+
+# ─── Map skill → bucket (mirrors THINKING_PROFILES) ─────────────
+case "$CALLING_SKILL" in
+  # strategy, upgradeable to max
+  plan-ceo-review|plan-eng-review|office-hours|autoplan)
+    BUCKET="max" ;;
+  # strategy
+  plan-design-review|plan-devex-review|design-consultation|codex)
+    BUCKET="high" ;;
+  # analysis, high-bucket
+  investigate|cso|review|devex-review)
+    BUCKET="high" ;;
+  # analysis, medium
+  design-review|retro)
+    BUCKET="medium" ;;
+  # execution, mixed
+  qa|ship|land-and-deploy|document-release|health|canary|benchmark|context-save|qa-only)
+    BUCKET="medium" ;;
+  # execution, low
+  browse|make-pdf|setup-deploy|context-restore|learn)
+    BUCKET="low" ;;
+  # unknown skill: return high (safe default — over-deliberation beats under)
+  *)
+    BUCKET="high" ;;
+esac
+
+# ─── Map bucket → codex effort token (codex supports: low|medium|high|xhigh) ──
+# Note: 5.3-codex is the target. 5.2 supports none/low/medium/high only.
+# For simplicity we emit what 5.3 accepts; if caller is on 5.2, they'll still
+# get a usable value (high) from our `max` → `xhigh` being truncated by codex.
+case "$BUCKET" in
+  max)     EFFORT="xhigh" ;;
+  high)    EFFORT="high" ;;
+  medium)  EFFORT="medium" ;;
+  low)     EFFORT="low" ;;
+  minimal) EFFORT="low" ;;   # codex has no 'minimal'; clamp to low
+  *)       EFFORT="high" ;;
+esac
+
+echo "$EFFORT"

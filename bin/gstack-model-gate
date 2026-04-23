@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# gstack-model-gate — check if (model, skill) pairing is safe.
+#
+# Usage: gstack-model-gate <model> <skill>
+# Output: "OK" or "ESCALATE:<replacement>|<reason>"
+# Exit 0 always (advisory, never gating — the agent interprets the output).
+#
+# Mirrors scripts/model-gate-rules.ts. If you change rules there, update
+# here too. The drift is guarded by test/model-gate-parity.test.ts.
+#
+# Rule set is hardcoded for speed — we don't want to spin up bun for every
+# preamble run. jq is not required.
+
+set -euo pipefail
+
+MODEL="${1:-}"
+SKILL="${2:-}"
+
+[ -z "$MODEL" ] || [ -z "$SKILL" ] && { echo "OK"; exit 0; }
+
+# ─── Classify skill kind + bucket (mirrors thinking-profiles.ts) ───────
+# Only enumerate skills that appear in rules below. Others fall through to OK.
+case "$SKILL" in
+  # strategy
+  plan-ceo-review|plan-eng-review|plan-design-review|plan-devex-review|office-hours|autoplan|codex|design-consultation)
+    KIND="strategy" ;;
+  # analysis (high-bucket)
+  investigate|cso|review|plan-design-review)
+    KIND="analysis-high" ;;
+  # everything else: OK for any model
+  *)
+    echo "OK"; exit 0 ;;
+esac
+
+# ─── Rules ─────────────────────────────────────────────────────────────
+case "$MODEL" in
+  gpt-5.3-codex-spark)
+    case "$KIND" in
+      strategy|analysis-high)
+        echo "ESCALATE:gpt-5.3-codex|Spark is speed-first (no reasoning_effort knob). This skill needs deliberation Spark can't do."
+        exit 0 ;;
+    esac
+    ;;
+esac
+
+echo "OK"

@@ -1,0 +1,188 @@
+#!/usr/bin/env bun
+/**
+ * gstack-model-stats — aggregate per-project timeline.jsonl files by (skill, model).
+ *
+ * Usage:
+ *   gstack-model-stats                     # all projects, all skills
+ *   gstack-model-stats <skill>             # one skill, all projects
+ *   gstack-model-stats --project <slug>    # one project
+ *   gstack-model-stats --json              # machine-readable
+ *   gstack-model-stats --help
+ *
+ * Reads the A6 timeline schema: {skill, event, branch, session, model, host, ts, ...}
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+const GSTACK_HOME = process.env.GSTACK_HOME || path.join(process.env.HOME || '', '.gstack');
+const PROJECTS_DIR = path.join(GSTACK_HOME, 'projects');
+
+interface TimelineEntry {
+  skill?: string;
+  event?: string;
+  branch?: string;
+  session?: string;
+  model?: string;
+  host?: string;
+  outcome?: string;
+  duration_s?: number;
+  ts?: string;
+}
+
+function readTimelines(projectFilter?: string): TimelineEntry[] {
+  if (!fs.existsSync(PROJECTS_DIR)) return [];
+  const projects = fs.readdirSync(PROJECTS_DIR).filter((p) => {
+    if (projectFilter && p !== projectFilter) return false;
+    const tl = path.join(PROJECTS_DIR, p, 'timeline.jsonl');
+    return fs.existsSync(tl);
+  });
+  const entries: TimelineEntry[] = [];
+  for (const project of projects) {
+    const tl = path.join(PROJECTS_DIR, project, 'timeline.jsonl');
+    for (const line of fs.readFileSync(tl, 'utf-8').split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        entries.push(JSON.parse(line));
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+  return entries;
+}
+
+interface Bucket {
+  started: number;
+  completed: number;
+  durations_s: number[];
+  models: Record<string, number>;
+}
+
+function emptyBucket(): Bucket {
+  return { started: 0, completed: 0, durations_s: [], models: {} };
+}
+
+function median(nums: number[]): number | null {
+  if (nums.length === 0) return null;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+function padRight(s: string, n: number): string {
+  return s.length >= n ? s : s + ' '.repeat(n - s.length);
+}
+
+function printHelp(): void {
+  console.log(`gstack-model-stats — aggregate timeline events by (skill, model)
+
+Usage:
+  gstack-model-stats                     all projects, all skills
+  gstack-model-stats <skill>             filter to one skill
+  gstack-model-stats --project <slug>    filter to one project
+  gstack-model-stats --json              machine-readable output
+  gstack-model-stats --help              this message
+`);
+}
+
+// ─── Parse args ──────────────────────────────────────────────
+const args = process.argv.slice(2);
+let skillFilter: string | undefined;
+let projectFilter: string | undefined;
+let jsonMode = false;
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '--help' || a === '-h') { printHelp(); process.exit(0); }
+  if (a === '--json') { jsonMode = true; continue; }
+  if (a === '--project') { projectFilter = args[++i]; continue; }
+  if (!skillFilter && !a.startsWith('-')) skillFilter = a;
+}
+
+const entries = readTimelines(projectFilter);
+if (entries.length === 0) {
+  if (jsonMode) console.log('[]');
+  else console.log('No timeline data found under', PROJECTS_DIR);
+  process.exit(0);
+}
+
+// ─── Group by (skill, model) ─────────────────────────────────
+const buckets = new Map<string, Bucket>();
+const durationBySession = new Map<string, { start?: number; end?: number; skill?: string; model?: string }>();
+
+for (const e of entries) {
+  if (!e.skill || !e.event) continue;
+  if (skillFilter && e.skill !== skillFilter) continue;
+  const model = e.model || 'unknown';
+  const key = `${e.skill}__${model}`;
+  if (!buckets.has(key)) buckets.set(key, emptyBucket());
+  const b = buckets.get(key)!;
+  b.models[model] = (b.models[model] || 0) + 1;
+
+  if (e.event === 'started') b.started++;
+  if (e.event === 'completed') {
+    b.completed++;
+    if (typeof e.duration_s === 'number') b.durations_s.push(e.duration_s);
+  }
+
+  // Derive duration from session pairs as fallback
+  if (e.session && e.ts) {
+    const tsMs = new Date(e.ts).getTime();
+    const rec = durationBySession.get(e.session) || {};
+    if (e.event === 'started') rec.start = tsMs;
+    if (e.event === 'completed') rec.end = tsMs;
+    rec.skill = e.skill;
+    rec.model = model;
+    durationBySession.set(e.session, rec);
+  }
+}
+
+// Fill missing durations from session pairs
+for (const rec of durationBySession.values()) {
+  if (rec.start && rec.end && rec.skill && rec.model) {
+    const key = `${rec.skill}__${rec.model}`;
+    const b = buckets.get(key);
+    if (b && b.durations_s.length === 0) {
+      b.durations_s.push(Math.round((rec.end - rec.start) / 1000));
+    }
+  }
+}
+
+// ─── Output ──────────────────────────────────────────────────
+if (jsonMode) {
+  const out: any[] = [];
+  for (const [key, b] of buckets) {
+    const [skill, model] = key.split('__');
+    out.push({
+      skill,
+      model,
+      started: b.started,
+      completed: b.completed,
+      completion_rate: b.started > 0 ? b.completed / b.started : null,
+      median_duration_s: median(b.durations_s),
+      sample_size: Math.max(b.started, b.completed),
+    });
+  }
+  console.log(JSON.stringify(out, null, 2));
+  process.exit(0);
+}
+
+// Human table
+console.log(`\n── gstack-model-stats ${skillFilter ? `(/${skillFilter})` : '(all skills)'} ${projectFilter ? `[project: ${projectFilter}]` : ''} ──\n`);
+console.log(
+  `${padRight('skill', 24)} ${padRight('model', 22)} ${padRight('started', 9)} ${padRight('completed', 11)} ${padRight('rate', 8)} ${padRight('median', 8)} sample`
+);
+console.log('─'.repeat(100));
+
+const sorted = [...buckets.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+for (const [key, b] of sorted) {
+  const [skill, model] = key.split('__');
+  const rate = b.started > 0 ? ((b.completed / b.started) * 100).toFixed(0) + '%' : '-';
+  const med = median(b.durations_s);
+  const medStr = med !== null ? `${med}s` : '-';
+  const sample = Math.max(b.started, b.completed);
+  console.log(
+    `${padRight('/' + skill, 24)} ${padRight(model, 22)} ${padRight(String(b.started), 9)} ${padRight(String(b.completed), 11)} ${padRight(rate, 8)} ${padRight(medStr, 8)} ${sample}`
+  );
+}
+console.log('');
