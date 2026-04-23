@@ -1,0 +1,218 @@
+#!/usr/bin/env bun
+/**
+ * gstack-model-guide — user-facing model + skill recommendation tool.
+ *
+ * Usage:
+ *   gstack-model-guide                       # list supported models with their tier
+ *   gstack-model-guide <model>               # show full guidance for one model
+ *   gstack-model-guide <model> <skill>       # show the exact effort to use
+ *   gstack-model-guide --list-skills         # list skills with their thinking buckets
+ *   gstack-model-guide --matrix              # table: models × skill-kinds
+ *   gstack-model-guide --help                # usage
+ *
+ * Designed to be fast (read-only, no network). Prints to stdout.
+ */
+
+import { ALL_MODEL_NAMES, type Model, THINKING_CAPABILITIES, modelProvider, resolveModel } from '../scripts/models';
+import { THINKING_PROFILES, getThinkingProfile, type ThinkingBucket } from '../scripts/thinking-profiles';
+
+const args = process.argv.slice(2);
+
+function printHelp(): void {
+  console.log(`gstack-model-guide — model + skill effort recommendations
+
+Usage:
+  gstack-model-guide                       list all supported models
+  gstack-model-guide <model>               show guidance for one model
+  gstack-model-guide <model> <skill>       show the exact effort to use
+  gstack-model-guide --list-skills         list skills with thinking buckets
+  gstack-model-guide --matrix              print models × skill-kinds matrix
+  gstack-model-guide --help                this message
+
+Examples:
+  gstack-model-guide opus-4-7
+  gstack-model-guide gpt-5.3-codex investigate
+  gstack-model-guide claude-opus-4-7-20250115   # accepts full model IDs
+`);
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+  google: 'Google',
+  unknown: '?',
+};
+
+function padRight(s: string, n: number): string {
+  return s.length >= n ? s : s + ' '.repeat(n - s.length);
+}
+
+function printAllModels(): void {
+  console.log('\n── Supported models ────────────────────────────────────\n');
+  const byProvider: Record<string, Model[]> = { anthropic: [], openai: [], google: [], unknown: [] };
+  for (const m of ALL_MODEL_NAMES) byProvider[modelProvider(m)].push(m);
+
+  for (const provider of ['anthropic', 'openai', 'google', 'unknown'] as const) {
+    const list = byProvider[provider];
+    if (list.length === 0) continue;
+    console.log(`${PROVIDER_LABEL[provider]}:`);
+    for (const m of list) {
+      const cap = THINKING_CAPABILITIES[m];
+      const mode = cap?.mode ?? '?';
+      console.log(`  ${padRight(m, 22)} ${padRight(mode, 22)} default=${cap?.defaultEffort ?? '?'}`);
+    }
+    console.log('');
+  }
+  console.log('Run  gstack-model-guide <model>  for per-model guidance.\n');
+}
+
+function printModelGuide(raw: string): void {
+  const model = resolveModel(raw);
+  if (!model) {
+    console.error(`Unknown model: ${raw}`);
+    console.error(`Valid: ${ALL_MODEL_NAMES.join(', ')}`);
+    process.exit(1);
+  }
+  const cap = THINKING_CAPABILITIES[model];
+  const provider = modelProvider(model);
+
+  console.log(`\n── ${model} (${PROVIDER_LABEL[provider]}) ───────────────────────\n`);
+  console.log(`Thinking mode:      ${cap.mode}`);
+  console.log(`Allowed efforts:    ${cap.efforts.length > 0 ? cap.efforts.join(', ') : '(none — speed-first)'}`);
+  console.log(`Default effort:     ${cap.defaultEffort}`);
+  if (cap.manualBudgetRange) {
+    console.log(`Manual budget:      ${cap.manualBudgetRange[0]}–${cap.manualBudgetRange[1]} tokens`);
+  }
+  console.log('');
+  console.log(`Note: ${cap.note}`);
+  console.log('');
+  console.log('── Recommended effort per gstack skill ─────────────────\n');
+
+  const byKind: Record<string, Array<[string, ThinkingBucket]>> = {};
+  for (const [skill, profile] of Object.entries(THINKING_PROFILES)) {
+    if (profile.kind === 'safety' || profile.kind === 'utility') continue;
+    const k = profile.kind;
+    if (!byKind[k]) byKind[k] = [];
+    byKind[k].push([skill, profile.bucket]);
+  }
+  const order: Array<keyof typeof byKind> = ['strategy', 'analysis', 'execution'];
+  for (const kind of order) {
+    const list = byKind[kind];
+    if (!list) continue;
+    console.log(`${kind}:`);
+    for (const [skill, bucket] of list.sort((a, b) => a[0].localeCompare(b[0]))) {
+      const effort = bucketToEffort(bucket, model);
+      console.log(`  /${padRight(skill, 20)} bucket=${padRight(bucket, 8)} → ${effort}`);
+    }
+    console.log('');
+  }
+  console.log('Run  gstack-model-guide <model> <skill>  for a single entry.\n');
+}
+
+function bucketToEffort(bucket: ThinkingBucket, model: Model): string {
+  const cap = THINKING_CAPABILITIES[model];
+  if (!cap) return bucket;
+  if (cap.efforts.includes(bucket)) return bucket;
+  if (bucket === 'max') {
+    if (cap.efforts.includes('high')) return 'high';
+    if (cap.efforts.includes('xhigh')) return 'xhigh';
+    return cap.efforts[cap.efforts.length - 1] ?? 'high';
+  }
+  if (bucket === 'minimal') {
+    if (cap.efforts.includes('none')) return 'none';
+    if (cap.efforts.includes('low')) return 'low';
+    return cap.efforts[0] ?? 'low';
+  }
+  return cap.defaultEffort;
+}
+
+function printModelSkill(modelRaw: string, skillName: string): void {
+  const model = resolveModel(modelRaw);
+  if (!model) {
+    console.error(`Unknown model: ${modelRaw}`);
+    process.exit(1);
+  }
+  const profile = getThinkingProfile(skillName);
+  const cap = THINKING_CAPABILITIES[model];
+
+  if (profile.kind === 'safety' || profile.kind === 'utility') {
+    console.log(`\n/${skillName} is a ${profile.kind} skill — no thinking decision needed.`);
+    console.log(`  ${profile.rationale}\n`);
+    return;
+  }
+
+  const effort = bucketToEffort(profile.bucket, model);
+  console.log(`\n── /${skillName} on ${model} ──────────────────────────\n`);
+  console.log(`Recommended effort:  ${effort}`);
+  console.log(`Semantic bucket:     ${profile.bucket}`);
+  console.log(`Skill kind:          ${profile.kind}`);
+  console.log('');
+  console.log(`Why: ${profile.rationale}`);
+  if (profile.upgradeTo) {
+    console.log(`Upgrade to: ${bucketToEffort(profile.upgradeTo, model)} when you want more thoroughness.`);
+  }
+  if (profile.downgradeTo) {
+    console.log(`Downgrade to: ${bucketToEffort(profile.downgradeTo, model)} for speed-sensitive runs.`);
+  }
+  console.log('');
+  console.log(`Model note: ${cap.note}`);
+  console.log('');
+}
+
+function printMatrix(): void {
+  console.log('\n── Effort matrix (skill-kind × model) ───────────────\n');
+  const skillKinds: Array<[string, ThinkingBucket]> = [
+    ['strategy (plan-ceo, office-hours)', 'max'],
+    ['analysis (investigate, review, cso)', 'high'],
+    ['execution (qa, ship, design-review)', 'medium'],
+    ['utility (learn, health)', 'low'],
+  ];
+
+  const focusModels: Model[] = [
+    'sonnet-4-5', 'sonnet-4-6', 'opus-4-5', 'opus-4-6', 'opus-4-7',
+    'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.2-codex', 'gpt-5.3-codex', 'gpt-5.3-codex-spark',
+  ];
+
+  const headerRow = `${padRight('skill-kind', 40)} ${focusModels.map(m => padRight(m, 22)).join(' ')}`;
+  console.log(headerRow);
+  console.log('─'.repeat(headerRow.length));
+  for (const [kindLabel, bucket] of skillKinds) {
+    const row = focusModels.map(m => padRight(bucketToEffort(bucket as ThinkingBucket, m), 22)).join(' ');
+    console.log(`${padRight(kindLabel, 40)} ${row}`);
+  }
+  console.log('');
+}
+
+function printListSkills(): void {
+  console.log('\n── Skills by thinking bucket ────────────────────────\n');
+  const byBucket: Record<string, string[]> = {};
+  for (const [skill, profile] of Object.entries(THINKING_PROFILES)) {
+    if (!byBucket[profile.bucket]) byBucket[profile.bucket] = [];
+    byBucket[profile.bucket].push(`/${skill} (${profile.kind})`);
+  }
+  for (const bucket of ['max', 'high', 'medium', 'low', 'minimal'] as const) {
+    const list = byBucket[bucket];
+    if (!list) continue;
+    console.log(`${bucket}:`);
+    for (const s of list.sort()) console.log(`  ${s}`);
+    console.log('');
+  }
+}
+
+// ─── Entrypoint ─────────────────────────────────────────────
+if (args.length === 0) {
+  printAllModels();
+} else if (args[0] === '--help' || args[0] === '-h') {
+  printHelp();
+} else if (args[0] === '--list-skills') {
+  printListSkills();
+} else if (args[0] === '--matrix') {
+  printMatrix();
+} else if (args.length === 1) {
+  printModelGuide(args[0]);
+} else if (args.length === 2) {
+  printModelSkill(args[0], args[1]);
+} else {
+  printHelp();
+  process.exit(1);
+}

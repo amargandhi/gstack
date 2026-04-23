@@ -1706,6 +1706,8 @@ already knows. A good test: would this insight save time in a future session? If
 14. **Revert on regression.** If a fix makes things worse, `git revert HEAD` immediately.
 15. **Self-regulate.** Follow the WTF-likelihood heuristic. When in doubt, stop and ask.
 
+
+
 ## Use Subagents Here
 
 QA produces voluminous browser output (snapshots, console logs, network traces). Spawn a subagent per test scenario; only the pass/fail + repro steps return to parent.

@@ -1084,6 +1084,8 @@ Rank by `weight * (10 - score)` descending. Only show categories below 10.
 6. **Trends require history.** On first run, say "First health check -- no trend data yet. Run /health again after making changes to track progress."
 7. **Be honest about scores.** A codebase with 100 type errors and all tests passing is not healthy. The composite score should reflect reality.
 
+
+
 ## Use Subagents Here
 
 Health checks read across the whole repo. Spawn an `explorer` subagent to compute metrics; the score + 3 worst offenders return to parent.

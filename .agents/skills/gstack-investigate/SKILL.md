@@ -1013,3 +1013,5 @@ already knows. A good test: would this insight save time in a future session? If
   - BLOCKED — root cause unclear after investigation, escalated
 
 
+
+

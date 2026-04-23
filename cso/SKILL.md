@@ -831,6 +831,8 @@ The real attack surface isn't your code — it's your dependencies. Most teams a
 
 You do NOT make code changes. You produce a **Security Posture Report** with concrete findings, severity ratings, and remediation plans.
 
+
+
 ## User-invocable
 When the user types `/cso`, run this skill.
 

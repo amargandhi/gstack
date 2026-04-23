@@ -1072,6 +1072,8 @@ already knows. A good test: would this insight save time in a future session? If
   - DONE_WITH_CONCERNS — fixed but cannot fully verify (e.g., intermittent bug, requires staging)
   - BLOCKED — root cause unclear after investigation, escalated
 
+
+
 ## Use Subagents Here
 
 For root-cause investigation across an unfamiliar codebase, spawn an `explorer` subagent (`.claude/agents/explorer.md`) to map the call graph and return only the suspect files. Keeps your parent context clean for the actual fix.

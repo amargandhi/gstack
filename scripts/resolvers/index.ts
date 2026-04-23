@@ -22,6 +22,7 @@ import { generateModelOverlay } from './model-overlay';
 import { generateGBrainContextLoad, generateGBrainSaveResults } from './gbrain';
 import { generateQuestionPreferenceCheck, generateQuestionLog, generateInlineTuneFeedback } from './question-tuning';
 import { generateMakePdfSetup } from './make-pdf';
+import { generateThinkingHint } from './thinking-hint';
 
 export const RESOLVERS: Record<string, ResolverFn> = {
   SLUG_EVAL: generateSlugEval,
@@ -30,6 +31,7 @@ export const RESOLVERS: Record<string, ResolverFn> = {
   SNAPSHOT_FLAGS: generateSnapshotFlags,
   PREAMBLE: generatePreamble,
   SUBAGENT_HINT: generateSubagentHintResolver,
+  THINKING_HINT: generateThinkingHint,
   BROWSE_SETUP: generateBrowseSetup,
   BASE_BRANCH_DETECT: generateBaseBranchDetect,
   QA_METHODOLOGY: generateQAMethodology,

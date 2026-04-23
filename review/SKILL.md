@@ -1764,6 +1764,8 @@ If the review exits early before a real review completes (for example, no diff a
 - **Only flag real problems.** Skip anything that's fine.
 - **Use Greptile reply templates from greptile-triage.md.** Every reply includes evidence. Never post vague replies.
 
+
+
 ## Use Subagents Here
 
 For diffs > 500 lines or touching > 5 files, spawn parallel subagents: `security-reviewer`, `adversarial-reviewer`, and `explorer` (for unfamiliar areas of the codebase). Aggregate findings in the parent context.
