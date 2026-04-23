@@ -108,6 +108,17 @@ if [ -d ".claude/skills/gstack" ] && [ ! -L ".claude/skills/gstack" ]; then
 fi
 echo "VENDORED_GSTACK: $_VENDORED"
 echo "MODEL_OVERLAY: claude"
+# Runtime host + model detection (advisory). Lets skills and downstream scripts
+# know which agent/model is actually running, independent of the build-time host.
+_RUNTIME_HOST=$(~/.claude/skills/gstack/bin/gstack-detect-host 2>/dev/null || echo "unknown")
+_RUNTIME_MODEL=$(~/.claude/skills/gstack/bin/gstack-detect-model 2>/dev/null || echo "unknown")
+echo "RUNTIME_HOST: $_RUNTIME_HOST"
+echo "RUNTIME_MODEL: $_RUNTIME_MODEL"
+# Warn if build-time host doesn't match runtime host (installation/copy mistake).
+_BUILD_HOST="claude"
+if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; then
+  echo "HOST_MISMATCH: built for $_BUILD_HOST, running in $_RUNTIME_HOST — regenerate via: bun run gen:skill-docs --host $_RUNTIME_HOST"
+fi
 # Checkpoint mode (explicit = no auto-commit, continuous = WIP commits as you go)
 _CHECKPOINT_MODE=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_mode 2>/dev/null || echo "explicit")
 _CHECKPOINT_PUSH=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_push 2>/dev/null || echo "false")
@@ -916,6 +927,8 @@ Only *actions* are idempotent:
 - Step 17: If already pushed, skip the push command
 - Step 19: If PR exists, update the body instead of creating a new PR
 Never skip a verification step because a prior `/ship` run already performed it.
+
+
 
 ---
 

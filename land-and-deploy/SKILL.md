@@ -102,6 +102,17 @@ if [ -d ".claude/skills/gstack" ] && [ ! -L ".claude/skills/gstack" ]; then
 fi
 echo "VENDORED_GSTACK: $_VENDORED"
 echo "MODEL_OVERLAY: claude"
+# Runtime host + model detection (advisory). Lets skills and downstream scripts
+# know which agent/model is actually running, independent of the build-time host.
+_RUNTIME_HOST=$(~/.claude/skills/gstack/bin/gstack-detect-host 2>/dev/null || echo "unknown")
+_RUNTIME_MODEL=$(~/.claude/skills/gstack/bin/gstack-detect-model 2>/dev/null || echo "unknown")
+echo "RUNTIME_HOST: $_RUNTIME_HOST"
+echo "RUNTIME_MODEL: $_RUNTIME_MODEL"
+# Warn if build-time host doesn't match runtime host (installation/copy mistake).
+_BUILD_HOST="claude"
+if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; then
+  echo "HOST_MISMATCH: built for $_BUILD_HOST, running in $_RUNTIME_HOST — regenerate via: bun run gen:skill-docs --host $_RUNTIME_HOST"
+fi
 # Checkpoint mode (explicit = no auto-commit, continuous = WIP commits as you go)
 _CHECKPOINT_MODE=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_mode 2>/dev/null || echo "explicit")
 _CHECKPOINT_PUSH=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_push 2>/dev/null || echo "false")
@@ -915,6 +926,8 @@ branch name wherever the instructions say "the base branch" or `<default>`.
 You are a **Release Engineer** who has deployed to production thousands of times. You know the two worst feelings in software: the merge that breaks prod, and the merge that sits in queue for 45 minutes while you stare at the screen. Your job is to handle both gracefully — merge efficiently, wait intelligently, verify thoroughly, and give the user a clear verdict.
 
 This skill picks up where `/ship` left off. `/ship` creates the PR. You merge it, wait for deploy, and verify production.
+
+
 
 ## User-invocable
 When the user types `/land-and-deploy`, run this skill.

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# gstack-detect-host — identify which AI agent is running this skill.
+#
+# Reads env vars the host sets, plus the invoking script's path, to decide.
+# Emits one word to stdout: claude|codex|cursor|factory|kiro|opencode|openclaw|unknown
+# Exit 0 always (advisory, never gating).
+#
+# Detection order (most specific first):
+#   1. Explicit env vars set by the host
+#   2. Path-based inference (which ~/.foo/skills/ directory we were invoked from)
+#   3. Fallback to 'unknown'
+
+set -euo pipefail
+
+# ─── 1. Env-var sniff (host-specific markers) ─────────────
+# Claude Code — confirmed via Claude Code env-vars docs
+if [ "${CLAUDECODE:-}" = "1" ]; then
+  echo "claude"; exit 0
+fi
+# Cursor — sets TERM_PROGRAM=cursor in some versions, also CURSOR_TRACE_ID
+if [ "${TERM_PROGRAM:-}" = "cursor" ] || [ -n "${CURSOR_TRACE_ID:-}" ]; then
+  echo "cursor"; exit 0
+fi
+# Factory Droid
+if [ -n "${FACTORY_DROID:-}" ] || [ -n "${DROID_SESSION_ID:-}" ]; then
+  echo "factory"; exit 0
+fi
+# Kiro
+if [ -n "${KIRO_SESSION:-}" ] || [ -n "${KIRO_WORKSPACE:-}" ]; then
+  echo "kiro"; exit 0
+fi
+# OpenCode
+if [ -n "${OPENCODE_SESSION:-}" ]; then
+  echo "opencode"; exit 0
+fi
+# OpenClaw
+if [ -n "${OPENCLAW_SESSION:-}" ]; then
+  echo "openclaw"; exit 0
+fi
+# Codex CLI — CODEX_HOME is the most reliable signal (set whenever codex binary runs)
+if [ -n "${CODEX_HOME:-}" ]; then
+  echo "codex"; exit 0
+fi
+# Codex CLI (proposed AGENT var, tracked by openai/codex#13416 — future-proof)
+if [ "${AGENT:-}" = "codex" ]; then
+  echo "codex"; exit 0
+fi
+
+# ─── 2. Path-based inference ──────────────────────────────
+# If the caller's $PWD or $0 sits under a host-specific skills dir, that's our host.
+_probe_path="${BASH_SOURCE[0]:-$0}"
+_probe_path="$(cd "$(dirname "$_probe_path")" 2>/dev/null && pwd)"
+case "$_probe_path" in
+  */.claude/skills/*)    echo "claude"; exit 0 ;;
+  */.codex/skills/*)     echo "codex"; exit 0 ;;
+  */.cursor/skills/*)    echo "cursor"; exit 0 ;;
+  */.factory/skills/*)   echo "factory"; exit 0 ;;
+  */.kiro/skills/*)      echo "kiro"; exit 0 ;;
+  */.opencode/skills/*)  echo "opencode"; exit 0 ;;
+  */.openclaw/skills/*)  echo "openclaw"; exit 0 ;;
+  */.slate/skills/*)     echo "slate"; exit 0 ;;
+  */.gbrain/skills/*)    echo "gbrain"; exit 0 ;;
+esac
+
+# ─── 3. Fallback ──────────────────────────────────────────
+echo "unknown"

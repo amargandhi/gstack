@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# gstack-detect-model — identify which model is running this skill.
+#
+# Reads env vars the host or provider sets. Emits one of:
+#   sonnet-4-5, sonnet-4-6, opus-4-5, opus-4-6, opus-4-7,
+#   gpt-5.4, gpt-5.4-mini, gpt-5.2, gpt-5.2-codex, gpt-5.3-codex, gpt-5.3-codex-spark,
+#   claude, gpt, o-series, gemini, unknown
+#
+# The emitted string matches ALL_MODEL_NAMES in scripts/models.ts so it's
+# directly usable with gstack-model-guide.
+#
+# Exit 0 always (advisory).
+
+set -euo pipefail
+
+# ─── Normalize: given a raw model string, output the gstack family name ──
+normalize() {
+  local raw="${1:-}"
+  [ -z "$raw" ] && { echo "unknown"; return; }
+  case "$raw" in
+    # Claude family (longer-prefix first)
+    claude-sonnet-4-5*)   echo "sonnet-4-5" ;;
+    claude-sonnet-4-6*)   echo "sonnet-4-6" ;;
+    claude-opus-4-5*)     echo "opus-4-5" ;;
+    claude-opus-4-6*)     echo "opus-4-6" ;;
+    claude-opus-4-7*)     echo "opus-4-7" ;;
+    claude-*)             echo "claude" ;;
+    # OpenAI family (longer-prefix first)
+    gpt-5.3-codex-spark*) echo "gpt-5.3-codex-spark" ;;
+    gpt-5.3-codex*)       echo "gpt-5.3-codex" ;;
+    gpt-5.2-codex*)       echo "gpt-5.2-codex" ;;
+    gpt-5.4-mini*)        echo "gpt-5.4-mini" ;;
+    gpt-5.4*)             echo "gpt-5.4" ;;
+    gpt-5.2*)             echo "gpt-5.2" ;;
+    gpt-*)                echo "gpt" ;;
+    o[0-9]*)              echo "o-series" ;;
+    gemini*)              echo "gemini" ;;
+    *)                    echo "unknown" ;;
+  esac
+}
+
+# ─── 1. Provider-specific env vars ────────────────────────
+# Anthropic / Claude Code
+if [ -n "${ANTHROPIC_MODEL:-}" ]; then
+  normalize "$ANTHROPIC_MODEL"; exit 0
+fi
+if [ -n "${CLAUDE_CODE_SUBAGENT_MODEL:-}" ]; then
+  normalize "$CLAUDE_CODE_SUBAGENT_MODEL"; exit 0
+fi
+
+# OpenAI / Codex
+if [ -n "${OPENAI_MODEL:-}" ]; then
+  normalize "$OPENAI_MODEL"; exit 0
+fi
+if [ -n "${CODEX_MODEL:-}" ]; then
+  normalize "$CODEX_MODEL"; exit 0
+fi
+
+# ─── 2. Infer from host if we can ─────────────────────────
+# If we're in Claude Code and no model env var is set, we're on the default.
+# The default model in Claude Code is selected via /model inside the app and
+# isn't exported to skills. Best we can do is "claude" (generic) and let the
+# user regenerate with --model <specific> if they want tuned guidance.
+if [ "${CLAUDECODE:-}" = "1" ]; then
+  echo "claude"; exit 0
+fi
+
+# ─── 3. Fallback ──────────────────────────────────────────
+echo "unknown"

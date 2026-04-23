@@ -147,8 +147,71 @@ bun run gen:skill-docs --host all
 
 ---
 
-## Future: runtime model detection
+## Runtime host + model detection
 
-Today gstack's model selection is **build-time** — you pass `--model` to `gen-skill-docs` and the SKILL.md files are baked with that overlay. Runtime detection (reading `CLAUDE_MODEL`, `OPENAI_MODEL` env vars and switching overlays on the fly) is a future enhancement.
+gstack now emits a runtime host/model probe on every skill invocation. Two bash
+variables are available in every preamble:
 
-For now, if your team uses a specific model, generate for it and treat gstack as tuned-for-that-model. If you use multiple models, regenerate when you swap, or pin a specific model in team mode.
+- `$_RUNTIME_HOST` — one of `claude`, `codex`, `cursor`, `factory`, `kiro`, `opencode`, `openclaw`, `slate`, `gbrain`, or `unknown`
+- `$_RUNTIME_MODEL` — one of the gstack model names (`opus-4-7`, `gpt-5.3-codex`, etc.) or `unknown`
+
+The preamble also prints a `HOST_MISMATCH: ...` line if the runtime host differs
+from the build-time host (catches mis-installed skill trees).
+
+### How detection works
+
+Host detection (`bin/gstack-detect-host`):
+1. **Env vars first** — `CLAUDECODE=1` for Claude Code, `CODEX_HOME` for Codex CLI,
+   `TERM_PROGRAM=cursor` / `CURSOR_TRACE_ID` for Cursor, `OPENCLAW_SESSION` /
+   `KIRO_SESSION` / `OPENCODE_SESSION` / `DROID_SESSION_ID` for the rest.
+2. **Path-based fallback** — if the script was invoked from
+   `~/.claude/skills/...` / `~/.codex/skills/...` / etc., infer from that.
+3. **Unknown** if neither signal fires.
+
+Model detection (`bin/gstack-detect-model`):
+1. **Provider env vars** — `ANTHROPIC_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL`,
+   `OPENAI_MODEL`, `CODEX_MODEL`.
+2. Normalizes via the same family heuristics as `resolveModel()` in
+   `scripts/models.ts`, so `claude-opus-4-7-20250115` → `opus-4-7`.
+3. Falls back to `claude` if the host is Claude Code but no model is exported.
+
+### What this enables
+
+- **Skill-level branching** in bash blocks: `[ "$_RUNTIME_HOST" = "codex" ] && ...`
+- **Installation sanity checks** — if you copy a `~/.claude/skills/gstack` tree to
+  `~/.codex/skills/` by mistake, every skill invocation warns you.
+- **Telemetry accuracy** — analytics can now record the actual runtime host, not
+  just the build-time host.
+- **Escalation opportunities** — a future enhancement could read `$_RUNTIME_MODEL`
+  and say "this is `/plan-ceo-review` running on Spark — recommend escalating
+  to `gpt-5.3-codex` before proceeding."
+
+### Testing detection
+
+```bash
+# Claude Code
+CLAUDECODE=1 bin/gstack-detect-host                                    # → claude
+CLAUDECODE=1 ANTHROPIC_MODEL=claude-opus-4-7-20250115 bin/gstack-detect-model  # → opus-4-7
+
+# Codex CLI
+CODEX_HOME=/tmp/codex bin/gstack-detect-host                           # → codex
+OPENAI_MODEL=gpt-5.3-codex-spark bin/gstack-detect-model              # → gpt-5.3-codex-spark
+
+# No env (fallback)
+env -i HOME=$HOME bin/gstack-detect-host                               # → unknown
+```
+
+---
+
+## Future enhancements
+
+- **Overlay switching at runtime** — today overlays are baked in. A future
+  enhancement could dynamically select the right overlay based on
+  `$_RUNTIME_MODEL`, avoiding the regeneration step when the user switches
+  models inside Claude Code via `/model`.
+- **Host-specific skill variants without regeneration** — single SKILL.md tree
+  with runtime host branching for the small delta between host behaviors.
+
+If your team uses a specific model consistently, generate for it and treat
+gstack as tuned-for-that-model. If you use multiple models, the overlays + the
+runtime probe let you catch most mismatches early.
