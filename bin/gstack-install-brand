@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# gstack-install-brand — install this fork under a custom brand name.
+#
+# Usage:
+#   gstack-install-brand <brand>            install as <brand> alongside existing gstack
+#   gstack-install-brand --dry-run <brand>  show what would happen
+#   gstack-install-brand --help
+#
+# Example:
+#   cd ~/Developer/gstack-ag
+#   ./bin/gstack-install-brand gstack-ag
+#
+# This:
+#   1. Regenerates all SKILL.md files with GSTACK_BRAND=<brand>
+#   2. Symlinks ~/.claude/skills/<brand> → this repo
+#   3. Creates prefixed symlinks (<brand>-qa, <brand>-ship, etc.) in ~/.claude/skills/
+#   4. Does NOT touch short names (/qa, /ship) — use bin/gstack-switch for that
+#   5. Does NOT touch the canonical `gstack` install — they coexist
+#
+# Undo: bin/gstack-uninstall-brand <brand>
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+CLAUDE_SKILLS="$HOME/.claude/skills"
+DRY_RUN=0
+
+print_help() {
+  cat <<EOF
+gstack-install-brand — install this fork under a custom brand (side-by-side with gstack)
+
+Usage:
+  gstack-install-brand <brand>            install as <brand>
+  gstack-install-brand --dry-run <brand>  preview without changes
+  gstack-install-brand --help             this message
+
+Example:
+  ./bin/gstack-install-brand gstack-ag
+
+Result: ~/.claude/skills/gstack-ag/ (and prefixed gstack-ag-qa, gstack-ag-ship symlinks)
+        coexists with ~/.claude/skills/gstack/ (if present).
+
+To make this brand the ACTIVE owner of short names (/qa, /ship):
+  bin/gstack-switch <brand>
+EOF
+}
+
+BRAND=""
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    --help|-h) print_help; exit 0 ;;
+    -*) echo "Unknown flag: $arg" >&2; exit 1 ;;
+    *) BRAND="$arg" ;;
+  esac
+done
+
+if [ -z "$BRAND" ]; then
+  print_help
+  exit 1
+fi
+
+if ! [[ "$BRAND" =~ ^[a-z][a-z0-9-]*$ ]]; then
+  echo "ERROR: invalid brand '$BRAND'. Must match [a-z][a-z0-9-]* (e.g. gstack-ag)." >&2
+  exit 1
+fi
+
+run() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "DRY: $*"
+  else
+    eval "$*"
+  fi
+}
+
+echo "Installing this fork as brand: $BRAND"
+echo "  Source:  $SOURCE_DIR"
+echo "  Install: $CLAUDE_SKILLS/$BRAND"
+echo ""
+
+# 1. Regenerate all SKILL.md files with the brand
+echo "[1/4] Regenerate SKILL.md with GSTACK_BRAND=$BRAND..."
+run "cd '$SOURCE_DIR' && GSTACK_BRAND='$BRAND' bun run gen:skill-docs --host claude"
+
+# 2. Create/update the branded install dir symlink
+echo "[2/4] Symlink $CLAUDE_SKILLS/$BRAND → $SOURCE_DIR"
+run "mkdir -p '$CLAUDE_SKILLS'"
+if [ -e "$CLAUDE_SKILLS/$BRAND" ] && [ ! -L "$CLAUDE_SKILLS/$BRAND" ]; then
+  echo "ERROR: $CLAUDE_SKILLS/$BRAND exists and is not a symlink. Remove it manually." >&2
+  exit 2
+fi
+run "ln -snf '$SOURCE_DIR' '$CLAUDE_SKILLS/$BRAND'"
+
+# 3. Create prefixed skill-name symlinks: <brand>-qa, <brand>-ship, etc.
+echo "[3/4] Create prefixed skill symlinks..."
+SHORT_NAMES=()
+for d in "$SOURCE_DIR"/*; do
+  [ -d "$d" ] || continue
+  [ -f "$d/SKILL.md" ] || continue
+  SHORT_NAMES+=("$(basename "$d")")
+done
+
+for s in "${SHORT_NAMES[@]}"; do
+  PREFIXED="$CLAUDE_SKILLS/$BRAND-$s"
+  TARGET="$CLAUDE_SKILLS/$BRAND/$s"
+  if [ -e "$PREFIXED" ] && [ ! -L "$PREFIXED" ]; then
+    echo "  SKIP: $PREFIXED exists and is not a symlink"
+    continue
+  fi
+  run "ln -snf '$TARGET' '$PREFIXED'"
+done
+echo "  ${#SHORT_NAMES[@]} prefixed symlinks."
+
+# 4. Summary
+echo ""
+echo "[4/4] Done."
+echo ""
+echo "Installed: $CLAUDE_SKILLS/$BRAND (→ $SOURCE_DIR)"
+echo "Prefixed skills available as /$BRAND-qa, /$BRAND-ship, etc."
+echo ""
+echo "Short names (/qa, /ship) are NOT yet routed to $BRAND."
+echo "To make $BRAND the active fork for short names, run:"
+echo "  $SOURCE_DIR/bin/gstack-switch $BRAND"
+echo ""
+echo "To uninstall this brand later:"
+echo "  rm $CLAUDE_SKILLS/$BRAND"
+echo "  rm $CLAUDE_SKILLS/$BRAND-*"

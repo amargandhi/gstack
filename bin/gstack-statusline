@@ -89,8 +89,29 @@ if [ -n "$SLUG" ]; then
   fi
 fi
 
+# ─── Active-fork detection (side-by-side install awareness) ─────
+# Derive this fork's brand from its install path (~/.claude/skills/<BRAND>/...).
+# The active tracker lives at ~/.claude/skills/.gstack-active
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR=$(cd "$(dirname "$SCRIPT_PATH")" && pwd)
+# Walk up: bin/ → install root → .claude/skills or similar
+INSTALL_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
+BRAND=$(basename "$INSTALL_ROOT")
+SKILLS_ROOT=$(dirname "$INSTALL_ROOT")
+ACTIVE=""
+[ -f "$SKILLS_ROOT/.gstack-active" ] && ACTIVE=$(cat "$SKILLS_ROOT/.gstack-active" 2>/dev/null || echo "")
+STATUS=""
+if [ -n "$ACTIVE" ]; then
+  if [ "$ACTIVE" = "$BRAND" ]; then
+    STATUS="ACTIVE"
+  else
+    STATUS="INACTIVE (active: $ACTIVE)"
+  fi
+fi
+
 # ─── Compose ───────────────────────────────────────────────
-LINE="gstack $VER | $BRANCH"
+LINE="$BRAND $VER | $BRANCH"
 [ -n "$LAST_SKILL" ] && LINE="$LINE | $LAST_SKILL"
 [ -n "$CKPT" ] && LINE="$LINE | $CKPT"
+[ -n "$STATUS" ] && LINE="$LINE | $STATUS"
 echo "$LINE"

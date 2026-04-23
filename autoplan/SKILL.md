@@ -111,6 +111,20 @@ if [ -d ".claude/skills/gstack" ] && [ ! -L ".claude/skills/gstack" ]; then
 fi
 echo "VENDORED_GSTACK: $_VENDORED"
 echo "MODEL_OVERLAY: claude"
+# Active-fork tracker: which gstack fork currently owns the short skill names
+# (multi-install side-by-side). Written by bin/gstack-switch. Informational only.
+# BUILD_BRAND is set at gen-skill-docs time; RUNTIME_ACTIVE is read live.
+_BUILD_BRAND="gstack"
+_SKILLS_ROOT="${GSTACK_SKILLS_ROOT:-$HOME/.claude/skills}"
+_ACTIVE_FORK=""
+[ -f "$_SKILLS_ROOT/.gstack-active" ] && _ACTIVE_FORK=$(cat "$_SKILLS_ROOT/.gstack-active" 2>/dev/null)
+if [ -z "$_ACTIVE_FORK" ]; then
+  echo "GSTACK_ACTIVE: (none) — short names (/qa, /ship) not routed. Run: ${GSTACK_BIN:-~/.claude/skills/$_BUILD_BRAND/bin}/gstack-switch $_BUILD_BRAND"
+elif [ "$_ACTIVE_FORK" = "$_BUILD_BRAND" ]; then
+  echo "GSTACK_ACTIVE: $_BUILD_BRAND (this fork) — short names /qa, /ship route here"
+else
+  echo "GSTACK_ACTIVE: $_ACTIVE_FORK (different fork) — /qa, /ship go to $_ACTIVE_FORK; use /$_BUILD_BRAND-<skill> to target this fork"
+fi
 # Runtime host + model detection (advisory). Lets skills and downstream scripts
 # know which agent/model is actually running, independent of the build-time host.
 _RUNTIME_HOST=$(~/.claude/skills/gstack/bin/gstack-detect-host 2>/dev/null || echo "unknown")

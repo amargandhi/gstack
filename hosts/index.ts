@@ -31,13 +31,29 @@ export type Host = (typeof ALL_HOST_CONFIGS)[number]['name'];
 /** All host names as a string array (for CLI arg validation, etc.). */
 export const ALL_HOST_NAMES: string[] = ALL_HOST_CONFIGS.map(c => c.name);
 
-/** Get a host config by name. Throws if not found. */
+/**
+ * Brand substitution — swap the trailing /gstack segment with $GSTACK_BRAND.
+ * Mirrors scripts/resolvers/types.ts:substituteBrand so host config paths
+ * stay consistent with HOST_PATHS across all consumers.
+ */
+function substituteBrand(path: string): string {
+  const brand = process.env.GSTACK_BRAND;
+  if (!brand || brand === 'gstack') return path;
+  return path.replace(/\/gstack(\/|$)/g, `/${brand}$1`);
+}
+
+/** Get a host config by name. Throws if not found. Applies brand substitution. */
 export function getHostConfig(name: string): HostConfig {
   const config = HOST_CONFIG_MAP[name];
   if (!config) {
     throw new Error(`Unknown host '${name}'. Valid hosts: ${ALL_HOST_NAMES.join(', ')}`);
   }
-  return config;
+  // Return a brand-substituted copy so callers see the correct paths.
+  return {
+    ...config,
+    globalRoot: substituteBrand(config.globalRoot),
+    localSkillRoot: substituteBrand(config.localSkillRoot),
+  };
 }
 
 /**

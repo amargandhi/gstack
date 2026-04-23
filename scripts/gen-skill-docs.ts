@@ -58,6 +58,20 @@ const MODEL_ARG_VAL: Model = (() => {
   return resolved;
 })();
 
+// ─── Brand Selection ────────────────────────────────────────
+// --brand is explicit. Default 'gstack'. Use 'gstack-ag' (or any name) to
+// coexist with Garry's gstack side-by-side. Sets GSTACK_BRAND env var so
+// all downstream resolvers (types.ts, hosts/index.ts, preamble) see it.
+const BRAND_ARG = process.argv.find(a => a.startsWith('--brand'));
+if (BRAND_ARG) {
+  const val = BRAND_ARG.includes('=') ? BRAND_ARG.split('=')[1] : process.argv[process.argv.indexOf(BRAND_ARG) + 1];
+  if (!val || !/^[a-z][a-z0-9-]*$/.test(val)) {
+    throw new Error(`Invalid --brand '${val}'. Must match [a-z][a-z0-9-]* (e.g., gstack, gstack-ag).`);
+  }
+  process.env.GSTACK_BRAND = val;
+}
+// If GSTACK_BRAND was already set in env (e.g. by setup), honor that.
+
 // HostPaths, HOST_PATHS, and TemplateContext imported from ./resolvers/types (line 7-8)
 // Design constants (AI_SLOP_BLACKLIST, OPENAI_HARD_REJECTIONS, OPENAI_LITMUS_CHECKS)
 // live in ./resolvers/constants and are consumed by resolvers directly.
@@ -451,6 +465,23 @@ function processTemplate(tmplPath: string, host: Host = 'claude'): { outputPath:
   // Must run BEFORE transformFrontmatter so all hosts see the updated description,
   // and BEFORE extractedDescription is used by external host metadata.
   content = processVoiceTriggers(content);
+
+  // Brand substitution: rewrite hardcoded skill-dir paths (e.g.
+  // `~/.claude/skills/gstack/bin/...`) to match the current --brand. Only
+  // targets path-shaped references under the known host skill dirs, so
+  // "gstack" as a word elsewhere in prose is untouched.
+  //
+  // Matches: .claude/skills/gstack(/ or end), .codex/skills/gstack, .agents/skills/gstack, etc.
+  // Also matches bare occurrences like `skills/gstack/bin` that appear without the dot prefix.
+  const brand = process.env.GSTACK_BRAND;
+  if (brand && brand !== 'gstack') {
+    content = content.replace(
+      /(\.(?:claude|codex|factory|kiro|opencode|openclaw|slate|cursor|gbrain|agents|hermes)\/skills\/)gstack(\/|\b)/g,
+      `$1${brand}$2`
+    );
+    // Also handle ~/.gstack/ data dir → ~/.{brand}/
+    content = content.replace(/~\/\.gstack(\/|\b)/g, `~/.${brand}$1`);
+  }
 
   // Re-extract description AFTER voice trigger preprocessing so Codex openai.yaml
   // metadata gets the updated description with voice triggers included.

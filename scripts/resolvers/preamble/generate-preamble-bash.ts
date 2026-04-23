@@ -1,6 +1,16 @@
 import type { TemplateContext } from '../types';
 import { getHostConfig } from '../../../hosts/index';
 
+/**
+ * Derive the brand name for this build. Default is 'gstack'. Override via
+ * GSTACK_BRAND env var at gen-skill-docs time. Used to populate
+ * $_BUILD_BRAND in the preamble so skills know which fork they belong to
+ * when side-by-side installs exist (see bin/gstack-switch).
+ */
+function getBrand(ctx: TemplateContext): string {
+  return process.env.GSTACK_BRAND || 'gstack';
+}
+
 export function generatePreambleBash(ctx: TemplateContext): string {
   const hostConfig = getHostConfig(ctx.host);
   const runtimeRoot = hostConfig.usesEnvVars
@@ -94,6 +104,20 @@ if [ -d ".claude/skills/gstack" ] && [ ! -L ".claude/skills/gstack" ]; then
 fi
 echo "VENDORED_GSTACK: $_VENDORED"
 echo "MODEL_OVERLAY: ${ctx.model ?? 'none'}"
+# Active-fork tracker: which gstack fork currently owns the short skill names
+# (multi-install side-by-side). Written by bin/gstack-switch. Informational only.
+# BUILD_BRAND is set at gen-skill-docs time; RUNTIME_ACTIVE is read live.
+_BUILD_BRAND="${getBrand(ctx)}"
+_SKILLS_ROOT="\${GSTACK_SKILLS_ROOT:-$HOME/.claude/skills}"
+_ACTIVE_FORK=""
+[ -f "$_SKILLS_ROOT/.gstack-active" ] && _ACTIVE_FORK=$(cat "$_SKILLS_ROOT/.gstack-active" 2>/dev/null)
+if [ -z "$_ACTIVE_FORK" ]; then
+  echo "GSTACK_ACTIVE: (none) — short names (/qa, /ship) not routed. Run: \${GSTACK_BIN:-~/.claude/skills/$_BUILD_BRAND/bin}/gstack-switch $_BUILD_BRAND"
+elif [ "$_ACTIVE_FORK" = "$_BUILD_BRAND" ]; then
+  echo "GSTACK_ACTIVE: $_BUILD_BRAND (this fork) — short names /qa, /ship route here"
+else
+  echo "GSTACK_ACTIVE: $_ACTIVE_FORK (different fork) — /qa, /ship go to $_ACTIVE_FORK; use /$_BUILD_BRAND-<skill> to target this fork"
+fi
 # Runtime host + model detection (advisory). Lets skills and downstream scripts
 # know which agent/model is actually running, independent of the build-time host.
 _RUNTIME_HOST=$(${ctx.paths.binDir}/gstack-detect-host 2>/dev/null || echo "unknown")

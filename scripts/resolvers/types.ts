@@ -17,6 +17,21 @@ export interface HostPaths {
 }
 
 /**
+ * Brand substitution — swap `/gstack` suffix in host paths for a custom brand
+ * (e.g. `gstack-ag` for a personal fork that coexists with Garry's gstack).
+ * Set GSTACK_BRAND=<name> env var at gen-skill-docs time to activate.
+ *
+ * Only substitutes the trailing `/gstack` segment in the host config paths,
+ * so `.claude/skills/gstack` → `.claude/skills/gstack-ag` but unrelated
+ * occurrences of `gstack` elsewhere in paths are left alone.
+ */
+function substituteBrand(path: string): string {
+  const brand = process.env.GSTACK_BRAND;
+  if (!brand || brand === 'gstack') return path;
+  return path.replace(/\/gstack(\/|$)/g, `/${brand}$1`);
+}
+
+/**
  * HOST_PATHS — derived from host configs.
  * Each config's globalRoot/localSkillRoot determines the path structure.
  * Non-Claude hosts use $GSTACK_ROOT env vars (set by preamble).
@@ -24,20 +39,22 @@ export interface HostPaths {
 function buildHostPaths(): Record<string, HostPaths> {
   const paths: Record<string, HostPaths> = {};
   for (const config of ALL_HOST_CONFIGS) {
+    const globalRoot = substituteBrand(config.globalRoot);
+    const localSkillRoot = substituteBrand(config.localSkillRoot);
     if (config.usesEnvVars) {
       paths[config.name] = {
         skillRoot: '$GSTACK_ROOT',
-        localSkillRoot: config.localSkillRoot,
+        localSkillRoot,
         binDir: '$GSTACK_BIN',
         browseDir: '$GSTACK_BROWSE',
         designDir: '$GSTACK_DESIGN',
         makePdfDir: '$GSTACK_MAKE_PDF',
       };
     } else {
-      const root = `~/${config.globalRoot}`;
+      const root = `~/${globalRoot}`;
       paths[config.name] = {
         skillRoot: root,
-        localSkillRoot: config.localSkillRoot,
+        localSkillRoot,
         binDir: `${root}/bin`,
         browseDir: `${root}/browse/dist`,
         designDir: `${root}/design/dist`,

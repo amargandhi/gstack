@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# gstack-switch — manage which gstack fork owns the short skill names (/qa, /ship, etc.).
+#
+# Design:
+#   Every installed fork (gstack, gstack-ag, etc.) lives in its own directory
+#   with always-prefixed skills (gstack-qa, gstack-ag-qa). A single "active"
+#   fork additionally owns the SHORT skill symlinks (/qa, /ship). This switch
+#   script atomically re-points the short symlinks and updates the tracker.
+#
+# Usage:
+#   gstack-switch                  show current active
+#   gstack-switch <name>           flip to <name>  (e.g. gstack, gstack-ag)
+#   gstack-switch --list           list installed forks
+#   gstack-switch --clear          remove all short-name symlinks (no active)
+#   gstack-switch --help
+#
+# Tracker file: ~/.claude/skills/.gstack-active
+# Skills dir:   ~/.claude/skills/  (or $GSTACK_SKILLS_ROOT if set)
+#
+# Exit codes:
+#   0 success or show-only
+#   1 unknown fork / missing install dir
+#   2 symlink conflict (user has a real file where a symlink should go)
+
+set -euo pipefail
+
+SKILLS_ROOT="${GSTACK_SKILLS_ROOT:-$HOME/.claude/skills}"
+TRACKER="$SKILLS_ROOT/.gstack-active"
+
+print_help() {
+  cat <<EOF
+gstack-switch — manage which fork owns the short skill names
+
+Usage:
+  gstack-switch                    show current active fork
+  gstack-switch <name>             make <name> the active fork
+  gstack-switch --list             list installed forks
+  gstack-switch --clear            remove all short-name symlinks
+  gstack-switch --help             this message
+
+How it works:
+  All forks install their skills with a prefixed name (gstack-qa,
+  gstack-ag-qa). One fork is "active" and additionally owns the
+  bare short names (/qa, /ship, etc.). This command flips ownership.
+
+Examples:
+  gstack-switch                    # ACTIVE: gstack-ag
+  gstack-switch gstack             # switch to Garry's gstack
+  gstack-switch --list             # gstack, gstack-ag
+EOF
+}
+
+list_forks() {
+  local forks=()
+  for d in "$SKILLS_ROOT"/*; do
+    [ -d "$d" ] || continue
+    local name
+    name=$(basename "$d")
+    # A fork directory contains a SKILL.md + has subdirs like qa/, ship/, etc.
+    # Skip leaf skill symlinks (gstack-qa → gstack/qa).
+    if [ -f "$d/SKILL.md" ] && [ -d "$d/qa" ]; then
+      forks+=("$name")
+    fi
+  done
+  printf '%s\n' "${forks[@]}"
+}
+
+current_active() {
+  [ -f "$TRACKER" ] && cat "$TRACKER" || echo ""
+}
+
+# Collect short names a fork owns, derived from its directory layout.
+# These are the skill directories (qa, ship, review, etc.) — but NOT prefixed.
+fork_short_names() {
+  local fork="$1"
+  local fork_dir="$SKILLS_ROOT/$fork"
+  [ -d "$fork_dir" ] || return 0
+  for d in "$fork_dir"/*; do
+    [ -d "$d" ] || continue
+    [ -f "$d/SKILL.md" ] || continue
+    basename "$d"
+  done
+}
+
+remove_short_symlinks() {
+  local active
+  active=$(current_active)
+  [ -z "$active" ] && return 0
+  local short
+  while IFS= read -r short; do
+    [ -z "$short" ] && continue
+    local target="$SKILLS_ROOT/$short"
+    # Only remove if it's a symlink (safety: don't nuke user's real dirs)
+    if [ -L "$target" ]; then
+      rm -f "$target"
+    fi
+  done < <(fork_short_names "$active")
+}
+
+create_short_symlinks() {
+  local fork="$1"
+  local fork_dir="$SKILLS_ROOT/$fork"
+  local short
+  while IFS= read -r short; do
+    [ -z "$short" ] && continue
+    local target="$SKILLS_ROOT/$short"
+    # Safety: if the target is a real dir/file (not our symlink), bail loudly
+    if [ -e "$target" ] && [ ! -L "$target" ]; then
+      echo "ERROR: $target exists and is not a symlink. Remove it manually first." >&2
+      exit 2
+    fi
+    ln -snf "$fork_dir/$short" "$target"
+  done < <(fork_short_names "$fork")
+}
+
+show_active() {
+  local active
+  active=$(current_active)
+  if [ -z "$active" ]; then
+    echo "ACTIVE: (none) — no short-name symlinks installed"
+    echo ""
+    echo "Installed forks:"
+    list_forks | sed 's/^/  /'
+    echo ""
+    echo "Run: gstack-switch <fork>  to activate one"
+    exit 0
+  fi
+
+  local fork_dir="$SKILLS_ROOT/$active"
+  if [ ! -d "$fork_dir" ]; then
+    echo "ACTIVE: $active (STALE — install dir missing: $fork_dir)"
+    echo ""
+    echo "Installed forks:"
+    list_forks | sed 's/^/  /'
+    exit 0
+  fi
+
+  local ver="?"
+  [ -f "$fork_dir/VERSION" ] && ver=$(cat "$fork_dir/VERSION")
+  echo "ACTIVE: $active $ver"
+  echo ""
+  echo "Short names (/qa, /ship, etc.) route to $active."
+  echo "Always-prefixed names (/$active-qa, etc.) always target $active."
+  echo ""
+  echo "Other installed forks:"
+  list_forks | grep -v "^$active$" | sed 's/^/  /' || echo "  (none)"
+}
+
+case "${1:-}" in
+  ''|--show)
+    show_active
+    ;;
+  --help|-h)
+    print_help
+    ;;
+  --list)
+    list_forks
+    ;;
+  --clear)
+    remove_short_symlinks
+    rm -f "$TRACKER"
+    echo "Cleared. No active fork; short names removed."
+    ;;
+  *)
+    NEW="$1"
+    if [ ! -d "$SKILLS_ROOT/$NEW" ]; then
+      echo "ERROR: fork '$NEW' not installed at $SKILLS_ROOT/$NEW" >&2
+      echo "" >&2
+      echo "Installed forks:" >&2
+      list_forks | sed 's/^/  /' >&2
+      exit 1
+    fi
+    old=$(current_active)
+    if [ "$old" = "$NEW" ]; then
+      echo "$NEW is already active."
+      exit 0
+    fi
+    remove_short_symlinks
+    create_short_symlinks "$NEW"
+    echo "$NEW" > "$TRACKER"
+    echo "ACTIVE: $NEW${old:+ (was: $old)}"
+    ;;
+esac
