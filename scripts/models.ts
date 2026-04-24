@@ -22,12 +22,17 @@
  *
  * Codex side (via Codex CLI, Cursor, OpenCode, etc.):
  *   gpt              — Generic GPT base overlay
- *   gpt-5.4          — Flagship; reasoning_effort=minimal/low/medium/high
+ *   gpt-5.5          — Flagship coding + agent model (Apr 2026). reasoning_effort=low/medium/high/xhigh.
+ *                      NOTE: released as `gpt-5.5`, NOT `gpt-5.5-codex`. OpenAI collapsed the naming —
+ *                      one model ID sits at the top of both ChatGPT and Codex CLI. Defensively
+ *                      accept `gpt-5.5-codex*` inputs as aliases to `gpt-5.5`.
+ *   gpt-5.4          — Previous flagship; reasoning_effort=minimal/low/medium/high
  *   gpt-5.4-mini     — Efficient; same effort scale, smaller/faster, good for subagents
  *   gpt-5.2          — Previous gen; reasoning_effort=none/low/medium/high
  *   gpt-5.2-codex    — Coding-specialized 5.2 variant
- *   gpt-5.3-codex    — Industry-leading coding; reasoning_effort=low/medium/high/xhigh
- *   gpt-5.3-codex-spark — Research preview, real-time iteration (~1000+ tokens/s on Cerebras)
+ *   gpt-5.3-codex    — Still available. reasoning_effort=low/medium/high/xhigh. NOT superseded.
+ *   gpt-5.3-codex-spark — Research preview, real-time iteration (~1000+ tokens/s on Cerebras).
+ *                         NOT superseded by 5.5 — no Cerebras variant shipped for 5.5.
  *
  * Other:
  *   o-series         — o3, o4, o4-mini (non-Codex reasoning models)
@@ -42,6 +47,7 @@ export const ALL_MODEL_NAMES = [
   'opus-4-6',
   'opus-4-7',
   'gpt',
+  'gpt-5.5',
   'gpt-5.4',
   'gpt-5.4-mini',
   'gpt-5.2',
@@ -69,6 +75,8 @@ export type Model = (typeof ALL_MODEL_NAMES)[number];
  *    - `gpt-5.3-codex-spark*` → `gpt-5.3-codex-spark`
  *    - `gpt-5.3-codex*` → `gpt-5.3-codex`
  *    - `gpt-5.2-codex*` → `gpt-5.2-codex`
+ *    - `gpt-5.5-codex*` → `gpt-5.5` (defensive — no such ID exists at OpenAI, but users will type it)
+ *    - `gpt-5.5*` → `gpt-5.5`
  *    - `gpt-5.4-mini*` → `gpt-5.4-mini`
  *    - `gpt-5.4*` → `gpt-5.4`
  *    - `gpt-5.2*` → `gpt-5.2`
@@ -97,10 +105,14 @@ export function resolveModel(input: string): Model | null {
   if (/^claude-opus-4-7(-|$)/.test(s)) return 'opus-4-7';
   if (/^claude(-|$)/.test(s)) return 'claude';
 
-  // GPT/Codex family heuristics (longer-prefix first — spark > codex > mini > 5.4/5.2)
+  // GPT/Codex family heuristics (longer-prefix first — spark > codex > mini > 5.5/5.4/5.2)
   if (/^gpt-5\.3-codex-spark(-|$)/.test(s)) return 'gpt-5.3-codex-spark';
   if (/^gpt-5\.3-codex(-|$)/.test(s)) return 'gpt-5.3-codex';
   if (/^gpt-5\.2-codex(-|$)/.test(s)) return 'gpt-5.2-codex';
+  // Defensive: `gpt-5.5-codex*` is not a real OpenAI ID, but users will type it because
+  // 5.5 is what Codex CLI defaults to. Map to `gpt-5.5` rather than rejecting.
+  if (/^gpt-5\.5-codex(-|$)/.test(s)) return 'gpt-5.5';
+  if (/^gpt-5\.5(-|$)/.test(s)) return 'gpt-5.5';
   if (/^gpt-5\.4-mini(-|$)/.test(s)) return 'gpt-5.4-mini';
   if (/^gpt-5\.4(-|$)/.test(s)) return 'gpt-5.4';
   if (/^gpt-5\.2(-|$)/.test(s)) return 'gpt-5.2';
@@ -206,11 +218,17 @@ export const THINKING_CAPABILITIES: Record<Model, ThinkingCapability> = {
     defaultEffort: 'medium',
     note: 'Generic GPT fallback. Pass reasoning_effort via Responses API or `-c \'model_reasoning_effort="..."\'` for Codex CLI.',
   },
+  'gpt-5.5': {
+    mode: 'reasoning-effort',
+    efforts: ['low', 'medium', 'high', 'xhigh'],
+    defaultEffort: 'medium',
+    note: 'New flagship (Apr 2026). Agentic long-horizon work, 1M API context (400K Codex CLI), $5/$30 per MTok. Released as `gpt-5.5` — no `-codex` suffix. xhigh reserved for long autonomous runs. Codex 0.124.0+ resets reasoning_effort on model upgrade, so re-set it explicitly after switching from 5.3-codex. Default value `medium` is gstack-chosen (OpenAI default UNVERIFIED at launch).',
+  },
   'gpt-5.4': {
     mode: 'reasoning-effort',
     efforts: ['minimal', 'low', 'medium', 'high'],
     defaultEffort: 'medium',
-    note: 'Daily-driver flagship. medium balances intelligence + speed. Use minimal for trivial tasks, high only when evals justify it.',
+    note: 'Previous flagship (superseded by 5.5 Apr 2026 for agentic work, still valid for cheap daily driver). medium balances intelligence + speed. Use minimal for trivial tasks, high only when evals justify it.',
   },
   'gpt-5.4-mini': {
     mode: 'reasoning-effort',
