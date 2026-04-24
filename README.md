@@ -37,6 +37,22 @@ The four design-oriented skills now incorporate Ive's principles from his interv
 - **Measurable vs immeasurable** — trained judgment alongside metrics
 - **Failure as ambition** — distinguish invisible failures (catch) from visible risks (celebrate)
 
+### Enriched with canonical engineering literature
+
+After aligning with Anthropic guidance, I did a second pass — reading review of mattpocock/skills against the best books on software quality and asking "is there a more timeless way to say what we're telling Claude to do?" Seven branches of work grounded the skills in canonical literature rather than ad-hoc prose.
+
+| Branch | Source | What it does |
+|--------|--------|--------------|
+| **Canonical vocabulary** | Parnas 1972 (information hiding), Meyer 1988 (design by contract), Beck 2002 (RED-GREEN-REFACTOR), Beck 2024 (Tidy First? — structural vs behavioral), Ousterhout 2018 (deep modules, pass-through variables) | Adds a `docs/DESIGN_TESTS.md` reference doc plus vocabulary injected into `/review` and `/plan-eng-review`. Claude now names the specific smell (shallow module, pass-through method, mixed-axis commit) instead of saying "this feels off" |
+| **Fowler's 24 code smells** | Fowler 2018 *Refactoring*, 2nd ed. | `scripts/code-smells.json` + resolver `{{CODE_SMELLS_CHECKLIST}}` wired into `/review` Step 4.5 and `/plan-eng-review`. Each finding cites the canonical name (Feature Envy, Data Clumps, Shotgun Surgery, Divergent Change, etc.) so reviewers and authors share vocabulary |
+| **Nygard stability patterns** | Nygard 2018 *Release It!*, 2nd ed. | New `/cso --stability` mode audits for 12 anti-patterns (Integration Points, Chain Reactions, Cascading Failures, Blocked Threads, Unbounded Result Sets, Dogpile, etc.) and 12 patterns (Timeouts, Circuit Breaker, Bulkheads, etc.). Carved out of `/cso`'s DoS exclusion rule so stability findings aren't silently dropped |
+| **Git-guards hook** | Claude Code PreToolUse hooks | `bin/gstack-install-git-guards` installs a `PreToolUse` hook that blocks 7 destructive git ops (force-push to protected branches, reset --hard, clean -f, branch -D, checkout/restore ., rebase -i, --no-verify). Feature-branch force-push is allowed — only protected-branch force-push blocks. Overridable (user can run in terminal). Opt-in |
+| **`/investigate --file-issue`** | Feathers 2004 *Working Effectively with Legacy Code* (characterization tests first) | New flag: diagnose root cause, then STOP and file a GitHub issue with the diagnosis + a characterization-test-first-ordered TDD plan. Refuses to file if hypothesis is speculative — "investigation not converged; filing would propagate the wrong diagnosis" |
+| **`/glossary`** | Evans 2003 *Domain-Driven Design*, Ch. 2 + Ch. 14 | New skill builds an ubiquitous language doc with bounded contexts and Evans' 9 relationship types (Shared Kernel, Customer/Supplier, Conformist, Anticorruption Layer, Open Host Service, Published Language, Separate Ways, Partnership, Big Ball of Mud). Hard gate: documentation only, no refactors. Highest-value output is naming "language seams" — terms meaning different things in different contexts |
+| **`/challenge`** | Polya 1945 *How to Solve It* | New skill stress-tests a plan across Polya's 4 stages (Understand → Devise → Carry out → Look back), 3-5 hard questions per stage with the agent's recommended answer and a P1/P2/P3 priority. Verdict at top: READY / OPEN QUESTIONS / CRITICAL GAPS. Pure analysis — no plan edits, no code |
+
+Each branch is an independent, squash-mergeable commit on `feat/canonical-code-quality-vocab`. Bisect-friendly by construction: template changes separate from regeneration; new skills separate from wiring.
+
 ### Contradiction-tested
 
 After integration, I ran a contradiction analysis and found 5 real problems where Claude would receive conflicting instructions. All fixed:
@@ -96,9 +112,9 @@ Then add a gstack section to your project's CLAUDE.md:
 ## gstack
 Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__* tools.
 Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review,
-/design-consultation, /review, /ship, /browse, /qa, /qa-only, /design-review,
-/setup-browser-cookies, /retro, /investigate, /document-release, /codex, /careful,
-/freeze, /guard, /unfreeze, /gstack-upgrade.
+/design-consultation, /challenge, /glossary, /review, /ship, /browse, /qa, /qa-only,
+/design-review, /setup-browser-cookies, /retro, /investigate, /document-release, /codex,
+/cso, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade.
 ```
 
 ### Your first 5 minutes
@@ -118,7 +134,9 @@ Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-desig
 | | `/plan-eng-review` | Architecture, data flow, test strategy |
 | | `/plan-design-review` | Design completeness — rates 0-10, fixes to 10 |
 | | `/design-consultation` | Build a design system from scratch |
-| **Build** | `/investigate` | Root-cause debugging — no fixes without cause |
+| | `/challenge` | Polya 4-stage plan stress-test (Understand → Devise → Carry out → Look back) |
+| | `/glossary` | Ubiquitous language + bounded contexts (Evans DDD) |
+| **Build** | `/investigate` | Root-cause debugging — no fixes without cause (add `--file-issue` to file a GitHub issue instead of applying the fix) |
 | **Review** | `/review` | Pre-merge code review with auto-fixes |
 | | `/codex` | Second opinion from OpenAI Codex CLI |
 | **Test** | `/qa` | Browser-based QA + iterative bug fixing |
@@ -128,10 +146,12 @@ Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-desig
 | **Ship** | `/ship` | Sync, test, version, changelog, PR |
 | | `/document-release` | Update docs to match what shipped |
 | **Reflect** | `/retro` | Weekly retro with per-person metrics |
+| **Security** | `/cso` | OWASP Top 10 + STRIDE security audit. `--stability` runs Nygard Release It! patterns audit |
 | **Safety** | `/careful` | Warns before destructive commands |
 | | `/freeze` | Lock edits to one directory |
 | | `/guard` | Maximum safety (careful + freeze) |
 | | `/unfreeze` | Remove edit lock |
+| | `bin/gstack-install-git-guards` | PreToolUse hook blocking 7 destructive git ops (force-push to protected branches, reset --hard, clean -f, etc.). Not a skill — one-time install |
 
 ## Docs
 
