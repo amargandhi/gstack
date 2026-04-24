@@ -49,6 +49,11 @@ hooks:
 
 Fixing symptoms creates whack-a-mole debugging. Every fix that doesn't address root cause makes the next bug harder to find. Find the root cause, then fix it.
 
+## Arguments
+
+- `/investigate` — default: diagnose root cause AND apply the fix (all 5 phases).
+- `/investigate --file-issue` — diagnose root cause, then STOP and file a GitHub issue with the diagnosis + a characterization-test-first-ordered TDD plan. Do NOT apply the fix. Use this when you have time to investigate but not to fix (or when the fix belongs to someone else). Requires `gh` CLI auth to the repo.
+
 ---
 
 {{GBRAIN_CONTEXT_LOAD}}
@@ -152,7 +157,116 @@ Before writing ANY fix, verify your hypothesis.
 
 ---
 
+## Phase 4-alt: File as GitHub Issue (`--file-issue` mode)
+
+Run this phase **instead of Phase 4: Implementation** when the user invoked `/investigate --file-issue`. Do NOT apply the fix — the goal is to hand off a well-structured record that lets someone else apply it later with no re-investigation.
+
+**Precondition:** Phase 3 must have confirmed the hypothesis. If the hypothesis is still speculative (Phase 3 not satisfied, or the 3-strike rule tripped), do NOT file an issue — tell the user "investigation not converged; filing an issue would propagate the wrong diagnosis." Offer to continue investigating or escalate.
+
+1. **Check gh is authenticated:**
+   ```bash
+   gh auth status 2>&1 | head -3
+   ```
+   If not authenticated, stop and ask the user to run `gh auth login`. Do not try to work around it — filing issues under the wrong identity creates tracking confusion.
+
+2. **Compose the issue body.** Use this structure — the headings are load-bearing (future search relies on them):
+
+   ```markdown
+   ## Symptom
+   [One paragraph. What the user / a monitoring alert / a CI failure observed.
+    Include the error message, stack trace, or failed assertion verbatim.]
+
+   ## Reproduction
+   [Numbered steps that deterministically trigger the bug. If the bug is
+    intermittent, describe the conditions (load, timing, state) and estimate
+    frequency. "Can't reproduce" means do NOT file — go back to Phase 1.]
+
+   ## Root cause
+   [Specific, testable claim. Cite the file:line and the logical error.
+    Avoid "this seems to..." — if the diagnosis is not confirmed, do NOT file.]
+
+   ## Affected files
+   - path/to/file.ts:LINE — [why this file]
+   - path/to/other.ts    — [why this file]
+
+   ## Proposed fix (TDD order)
+
+   **The fix MUST land as a commit sequence in this order** (Beck, *Tidy First?*, 2024 — structural vs behavioral; Feathers, 2004 — characterization tests first on untested code):
+
+   1. **(structural, if needed)** Any rename / extract / move that would make the
+      fix easy. Tests pass identically before/after without modification.
+   2. **Characterization test** (only if the code path has no existing tests)
+      — lock down CURRENT behavior, including the bug. Green on main.
+      This gives future you a safety net: if the fix breaks something else,
+      the characterization test fails loudly.
+   3. **RED** — add a test that captures the CORRECT behavior. It fails on main
+      (because the bug is present) but will pass once the fix lands.
+   4. **GREEN** — smallest code change that makes the RED test pass without
+      breaking any characterization test.
+   5. **REFACTOR** — clean up with all tests green. Usually a no-op for bug fixes.
+
+   Do NOT fold steps 1-5 into a single commit. Each commit must be
+   independently revertable. See `docs/DESIGN_TESTS.md` for the full vocabulary.
+
+   ## Blast radius
+   [Which files the fix will touch. If >5, flag explicitly — the fixer should
+    reconsider whether the diagnosis is at the right layer.]
+
+   ## Related
+   [TODOS.md items, prior investigations in the same area (cite learning keys),
+    adjacent architecture notes. Recurring bugs in the same files are an
+    architectural smell, not a coincidence — flag this if applicable.]
+
+   ## Acceptance
+   - [ ] RED test from §Proposed fix step 3 is merged and initially failing.
+   - [ ] Characterization test (if needed) is merged green first.
+   - [ ] Fix commit makes RED test pass; characterization still green.
+   - [ ] Fresh reproduction from §Reproduction no longer triggers the bug.
+   - [ ] `gh issue close` only after all four boxes checked.
+
+   ---
+   *Filed via `/investigate --file-issue` — investigation evidence preserved at
+   `.gstack/investigations/<date>-<slug>.md` for the fixer.*
+   ```
+
+3. **Compose a short title.** Format: `[bug] <component>: <one-line symptom>`. Example: `[bug] auth middleware: sessions expire 1h early in UTC+N timezones`. Keep under 72 chars.
+
+4. **Persist the full investigation locally** (so the fixer can see the full evidence, not just the summary):
+   ```bash
+   mkdir -p .gstack/investigations
+   SLUG="<short-kebab-of-root-cause>"
+   DATE="$(date +%Y-%m-%d)"
+   # Write symptom, reproduction, hypotheses tested (including the ones that failed),
+   # evidence for the confirmed hypothesis, and the TDD plan to the file.
+   # The GitHub issue body links to this file by relative path.
+   ```
+
+5. **Preview + confirm.** Show the user the proposed issue title, body, and filename of the local evidence file via AskUserQuestion:
+   ```
+   Ready to file issue: "[bug] ..."
+   Body length: ~N lines. Evidence preserved at .gstack/investigations/<file>.md.
+
+   A) File it now via `gh issue create`
+   B) Show me the full body first, then file
+   C) Save the body to drafts/issue-body.md instead, I'll file manually
+   D) Cancel — I'll fix it now instead (run /investigate without --file-issue)
+   ```
+
+6. **File via gh** (on option A or B-confirmed):
+   ```bash
+   gh issue create --title "<title>" --body-file <body-file>
+   ```
+   Do NOT use `--assignee` without asking — assignment is a social act, not a technical one.
+
+7. **Report.** Print the issue URL. Log an investigation learning with `type: "investigation-filed"` and include the issue number so future investigations on the same area link to this one.
+
+8. **STOP.** Do NOT proceed to Phase 5 verification — there is no fix to verify. The issue IS the deliverable.
+
+---
+
 ## Phase 4: Implementation
+
+**Skip this phase if `--file-issue` was passed.** See Phase 4-alt above instead.
 
 Once root cause is confirmed:
 
