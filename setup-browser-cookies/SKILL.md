@@ -363,6 +363,7 @@ Key routing rules:
 - Tune question sensitivity → invoke /plan-tune
 - Code quality dashboard → invoke /health
 - Build a domain glossary, ubiquitous language, context map, bounded contexts → invoke /glossary
+- Stress-test a plan, "poke holes", "what could go wrong", red-team a design → invoke /challenge
 ```
 
 Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`

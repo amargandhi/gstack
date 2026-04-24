@@ -170,6 +170,12 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
     rationale: 'Mapping bounded contexts + naming language seams is synthesis, not mechanical catalog.',
     downgradeTo: 'low',
   },
+  challenge: {
+    bucket: 'high',
+    kind: 'analysis',
+    rationale: 'Adversarial plan stress-test. Catching structural gaps + assumption fragility rewards real deliberation.',
+    downgradeTo: 'medium',
+  },
   health: {
     bucket: 'medium',
     kind: 'analysis',

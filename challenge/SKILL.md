@@ -1,11 +1,31 @@
 ---
-name: canary
+name: challenge
+preamble-tier: 2
+version: 1.0.0
 description: |
-  Post-deploy canary monitoring. Watches the live app for console errors,
-  performance regressions, and page failures using the browse daemon. Takes
-  periodic screenshots, compares against pre-deploy baselines, and alerts
-  on anomalies. Use when: "monitor deploy", "canary", "post-deploy check",
-  "watch production", "verify deploy". (gstack)
+  Stress-test a plan document with adversarial questions structured around
+  George Polya's four stages from *How to Solve It* (1945): Understand,
+  Devise a plan, Carry out the plan, Look back. One hard question at a
+  time, with the agent's recommended answer and a P1/P2/P3 priority flag.
+  Output is a structured challenge report — no code is written.
+  Use when asked to "challenge this plan", "stress-test this", "poke holes",
+  "what could go wrong", "grill the plan", or "red-team this design".
+  Run before /ship, after /plan-ceo-review or /plan-eng-review when the
+  plan is non-trivial and reversibility matters. (gstack)
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Grep
+  - Glob
+  - AskUserQuestion
+triggers:
+  - challenge this plan
+  - stress-test this
+  - poke holes
+  - what could go wrong
+  - grill the plan
+  - red-team this
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
@@ -13,32 +33,26 @@ description: |
 ## Preamble (run first)
 
 ```bash
-_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-GSTACK_ROOT="$HOME/.codex/skills/gstack"
-[ -n "$_ROOT" ] && [ -d "$_ROOT/.agents/skills/gstack" ] && GSTACK_ROOT="$_ROOT/.agents/skills/gstack"
-GSTACK_BIN="$GSTACK_ROOT/bin"
-GSTACK_BROWSE="$GSTACK_ROOT/browse/dist"
-GSTACK_DESIGN="$GSTACK_ROOT/design/dist"
-_UPD=$($GSTACK_BIN/gstack-update-check 2>/dev/null || .agents/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
+_UPD=$(~/.claude/skills/gstack/bin/gstack-update-check 2>/dev/null || .claude/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
 [ -n "$_UPD" ] && echo "$_UPD" || true
 mkdir -p ~/.gstack/sessions
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
 find ~/.gstack/sessions -mmin +120 -type f -exec rm {} + 2>/dev/null || true
-_PROACTIVE=$($GSTACK_BIN/gstack-config get proactive 2>/dev/null || echo "true")
+_PROACTIVE=$(~/.claude/skills/gstack/bin/gstack-config get proactive 2>/dev/null || echo "true")
 _PROACTIVE_PROMPTED=$([ -f ~/.gstack/.proactive-prompted ] && echo "yes" || echo "no")
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "BRANCH: $_BRANCH"
-_SKILL_PREFIX=$($GSTACK_BIN/gstack-config get skill_prefix 2>/dev/null || echo "false")
+_SKILL_PREFIX=$(~/.claude/skills/gstack/bin/gstack-config get skill_prefix 2>/dev/null || echo "false")
 echo "PROACTIVE: $_PROACTIVE"
 echo "PROACTIVE_PROMPTED: $_PROACTIVE_PROMPTED"
 echo "SKILL_PREFIX: $_SKILL_PREFIX"
-source <($GSTACK_BIN/gstack-repo-mode 2>/dev/null) || true
+source <(~/.claude/skills/gstack/bin/gstack-repo-mode 2>/dev/null) || true
 REPO_MODE=${REPO_MODE:-unknown}
 echo "REPO_MODE: $REPO_MODE"
 _LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
 echo "LAKE_INTRO: $_LAKE_SEEN"
-_TEL=$($GSTACK_BIN/gstack-config get telemetry 2>/dev/null || true)
+_TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || true)
 _TEL_PROMPTED=$([ -f ~/.gstack/.telemetry-prompted ] && echo "yes" || echo "no")
 _TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
@@ -46,34 +60,34 @@ echo "TELEMETRY: ${_TEL:-off}"
 echo "TEL_PROMPTED: $_TEL_PROMPTED"
 # Writing style verbosity (V1: default = ELI10, terse = tighter V0 prose.
 # Read on every skill run so terse mode takes effect without a restart.)
-_EXPLAIN_LEVEL=$($GSTACK_BIN/gstack-config get explain_level 2>/dev/null || echo "default")
+_EXPLAIN_LEVEL=$(~/.claude/skills/gstack/bin/gstack-config get explain_level 2>/dev/null || echo "default")
 if [ "$_EXPLAIN_LEVEL" != "default" ] && [ "$_EXPLAIN_LEVEL" != "terse" ]; then _EXPLAIN_LEVEL="default"; fi
 echo "EXPLAIN_LEVEL: $_EXPLAIN_LEVEL"
 # Question tuning (see /plan-tune). Observational only in V1.
-_QUESTION_TUNING=$($GSTACK_BIN/gstack-config get question_tuning 2>/dev/null || echo "false")
+_QUESTION_TUNING=$(~/.claude/skills/gstack/bin/gstack-config get question_tuning 2>/dev/null || echo "false")
 echo "QUESTION_TUNING: $_QUESTION_TUNING"
 mkdir -p ~/.gstack/analytics
 if [ "$_TEL" != "off" ]; then
-echo '{"skill":"canary","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
+echo '{"skill":"challenge","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
 # zsh-compatible: use find instead of glob to avoid NOMATCH error
 for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null); do
   if [ -f "$_PF" ]; then
-    if [ "$_TEL" != "off" ] && [ -x "$GSTACK_BIN/gstack-telemetry-log" ]; then
-      $GSTACK_BIN/gstack-telemetry-log --event-type skill_run --skill _pending_finalize --outcome unknown --session-id "$_SESSION_ID" 2>/dev/null || true
+    if [ "$_TEL" != "off" ] && [ -x "~/.claude/skills/gstack/bin/gstack-telemetry-log" ]; then
+      ~/.claude/skills/gstack/bin/gstack-telemetry-log --event-type skill_run --skill _pending_finalize --outcome unknown --session-id "$_SESSION_ID" 2>/dev/null || true
     fi
     rm -f "$_PF" 2>/dev/null || true
   fi
   break
 done
 # Learnings count
-eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
 _LEARN_FILE="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}/learnings.jsonl"
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
   if [ "$_LEARN_COUNT" -gt 5 ] 2>/dev/null; then
-    $GSTACK_BIN/gstack-learnings-search --limit 3 2>/dev/null || true
+    ~/.claude/skills/gstack/bin/gstack-learnings-search --limit 3 2>/dev/null || true
   fi
 else
   echo "LEARNINGS: 0"
@@ -85,13 +99,13 @@ _HAS_ROUTING="no"
 if [ -f CLAUDE.md ] && grep -q "## Skill routing" CLAUDE.md 2>/dev/null; then
   _HAS_ROUTING="yes"
 fi
-_ROUTING_DECLINED=$($GSTACK_BIN/gstack-config get routing_declined 2>/dev/null || echo "false")
+_ROUTING_DECLINED=$(~/.claude/skills/gstack/bin/gstack-config get routing_declined 2>/dev/null || echo "false")
 echo "HAS_ROUTING: $_HAS_ROUTING"
 echo "ROUTING_DECLINED: $_ROUTING_DECLINED"
 # Vendoring deprecation: detect if CWD has a vendored gstack copy
 _VENDORED="no"
-if [ -d ".agents/skills/gstack" ] && [ ! -L ".agents/skills/gstack" ]; then
-  if [ -f ".agents/skills/gstack/VERSION" ] || [ -d ".agents/skills/gstack/.git" ]; then
+if [ -d ".claude/skills/gstack" ] && [ ! -L ".claude/skills/gstack" ]; then
+  if [ -f ".claude/skills/gstack/VERSION" ] || [ -d ".claude/skills/gstack/.git" ]; then
     _VENDORED="yes"
   fi
 fi
@@ -101,11 +115,11 @@ echo "MODEL_OVERLAY: claude"
 # (multi-install side-by-side). Written by bin/gstack-switch. Informational only.
 # BUILD_BRAND is set at gen-skill-docs time; RUNTIME_ACTIVE is read live.
 _BUILD_BRAND="gstack"
-_SKILLS_ROOT="${GSTACK_SKILLS_ROOT:-$HOME/.agents/skills}"
+_SKILLS_ROOT="${GSTACK_SKILLS_ROOT:-$HOME/.claude/skills}"
 _ACTIVE_FORK=""
 [ -f "$_SKILLS_ROOT/.gstack-active" ] && _ACTIVE_FORK=$(cat "$_SKILLS_ROOT/.gstack-active" 2>/dev/null)
 if [ -z "$_ACTIVE_FORK" ]; then
-  echo "GSTACK_ACTIVE: (none) — short names (/qa, /ship) not routed. Run: ${GSTACK_BIN:-~/.agents/skills/$_BUILD_BRAND/bin}/gstack-switch $_BUILD_BRAND"
+  echo "GSTACK_ACTIVE: (none) — short names (/qa, /ship) not routed. Run: ${GSTACK_BIN:-~/.claude/skills/$_BUILD_BRAND/bin}/gstack-switch $_BUILD_BRAND"
 elif [ "$_ACTIVE_FORK" = "$_BUILD_BRAND" ]; then
   echo "GSTACK_ACTIVE: $_BUILD_BRAND (this fork) — short names /qa, /ship route here"
 else
@@ -113,23 +127,23 @@ else
 fi
 # Runtime host + model detection (advisory). Lets skills and downstream scripts
 # know which agent/model is actually running, independent of the build-time host.
-_RUNTIME_HOST=$($GSTACK_BIN/gstack-detect-host 2>/dev/null || echo "unknown")
-_RUNTIME_MODEL=$($GSTACK_BIN/gstack-detect-model 2>/dev/null || echo "unknown")
+_RUNTIME_HOST=$(~/.claude/skills/gstack/bin/gstack-detect-host 2>/dev/null || echo "unknown")
+_RUNTIME_MODEL=$(~/.claude/skills/gstack/bin/gstack-detect-model 2>/dev/null || echo "unknown")
 echo "RUNTIME_HOST: $_RUNTIME_HOST"
 echo "RUNTIME_MODEL: $_RUNTIME_MODEL"
 # Warn if build-time host doesn't match runtime host (installation/copy mistake).
-_BUILD_HOST="codex"
+_BUILD_HOST="claude"
 if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; then
   echo "HOST_MISMATCH: built for $_BUILD_HOST, running in $_RUNTIME_HOST — regenerate via: bun run gen:skill-docs --host $_RUNTIME_HOST"
 fi
 # Session timeline: record skill start with runtime model (local-only, never sent anywhere)
-$GSTACK_BIN/gstack-timeline-log '{"skill":"canary","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
+~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"challenge","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
 # Dynamic overlay (B1): if runtime model differs from build model and we have an
 # overlay for the runtime model, emit it as a system-reminder so the model gets
 # its own behavioral guidance without requiring a regeneration.
 _BUILD_MODEL="claude"
 if [ "$_RUNTIME_MODEL" != "unknown" ] && [ "$_RUNTIME_MODEL" != "$_BUILD_MODEL" ]; then
-  _OVERLAY_CONTENT=$($GSTACK_BIN/gstack-overlay-emit "$_RUNTIME_MODEL" 2>/dev/null || echo "")
+  _OVERLAY_CONTENT=$(~/.claude/skills/gstack/bin/gstack-overlay-emit "$_RUNTIME_MODEL" 2>/dev/null || echo "")
   if [ -n "$_OVERLAY_CONTENT" ]; then
     echo ""
     echo "<system-reminder>"
@@ -143,26 +157,26 @@ if [ "$_RUNTIME_MODEL" != "unknown" ] && [ "$_RUNTIME_MODEL" != "$_BUILD_MODEL" 
 fi
 # Model gate — hard STOP if the runtime model is known to be unsuitable for this skill.
 # Only fires for models with explicit rules (currently: gpt-5.3-codex-spark on strategy/high-analysis).
-_GATE=$($GSTACK_BIN/gstack-model-gate "$_RUNTIME_MODEL" "canary" 2>/dev/null || echo "OK")
+_GATE=$(~/.claude/skills/gstack/bin/gstack-model-gate "$_RUNTIME_MODEL" "challenge" 2>/dev/null || echo "OK")
 if [ "${_GATE%%:*}" = "ESCALATE" ]; then
   _SUGGEST="${_GATE#ESCALATE:}"
   _SUGGEST_MODEL="${_SUGGEST%%|*}"
   _SUGGEST_REASON="${_SUGGEST#*|}"
   echo ""
   echo "<system-reminder>"
-  echo "MODEL_GATE: $_RUNTIME_MODEL is not suitable for /canary."
+  echo "MODEL_GATE: $_RUNTIME_MODEL is not suitable for /challenge."
   echo "Reason: $_SUGGEST_REASON"
   echo ""
   echo "STOP. Before continuing this skill, ask the user to either:"
-  echo "  1. Re-run on a capable model: codex -m $_SUGGEST_MODEL /canary"
+  echo "  1. Re-run on a capable model: codex -m $_SUGGEST_MODEL /challenge"
   echo "  2. Or switch the model in their current harness (e.g. /model in Claude Code)"
   echo ""
-  echo "Explain the trade-off briefly so they understand why. Do not proceed with /canary on $_RUNTIME_MODEL."
+  echo "Explain the trade-off briefly so they understand why. Do not proceed with /challenge on $_RUNTIME_MODEL."
   echo "</system-reminder>"
 fi
 # Checkpoint mode (explicit = no auto-commit, continuous = WIP commits as you go)
-_CHECKPOINT_MODE=$($GSTACK_BIN/gstack-config get checkpoint_mode 2>/dev/null || echo "explicit")
-_CHECKPOINT_PUSH=$($GSTACK_BIN/gstack-config get checkpoint_push 2>/dev/null || echo "false")
+_CHECKPOINT_MODE=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_mode 2>/dev/null || echo "explicit")
+_CHECKPOINT_PUSH=$(~/.claude/skills/gstack/bin/gstack-config get checkpoint_push 2>/dev/null || echo "false")
 echo "CHECKPOINT_MODE: $_CHECKPOINT_MODE"
 echo "CHECKPOINT_PUSH: $_CHECKPOINT_PUSH"
 # Detect spawned session (OpenClaw or other orchestrator)
@@ -178,9 +192,9 @@ The user opted out of proactive behavior.
 If `SKILL_PREFIX` is `"true"`, the user has namespaced skill names. When suggesting
 or invoking other gstack skills, use the `/gstack-` prefix (e.g., `/gstack-qa` instead
 of `/qa`, `/gstack-ship` instead of `/ship`). Disk paths are unaffected — always use
-`$GSTACK_ROOT/[skill-name]/SKILL.md` for reading skill files.
+`~/.claude/skills/gstack/[skill-name]/SKILL.md` for reading skill files.
 
-If output shows `UPGRADE_AVAILABLE <old> <new>`: read `$GSTACK_ROOT/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined).
+If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined).
 
 If output shows `JUST_UPGRADED <from> <to>` AND `SPAWNED_SESSION` is NOT set: tell
 the user "Running gstack v{to} (just updated!)" and then check for new features to
@@ -194,21 +208,21 @@ prompts from sub-sessions.
 
 **Feature discovery markers and prompts** (one at a time, max one per session):
 
-1. `$GSTACK_ROOT/.feature-prompted-continuous-checkpoint` →
+1. `~/.claude/skills/gstack/.feature-prompted-continuous-checkpoint` →
    Prompt: "Continuous checkpoint auto-commits your work as you go with `WIP:` prefix
    so you never lose progress to a crash. Local-only by default — doesn't push
    anywhere unless you turn that on. Want to try it?"
    Options: A) Enable continuous mode, B) Show me first (print the section from
    the preamble Continuous Checkpoint Mode), C) Skip.
-   If A: run `$GSTACK_BIN/gstack-config set checkpoint_mode continuous`.
-   Always: `touch $GSTACK_ROOT/.feature-prompted-continuous-checkpoint`
+   If A: run `~/.claude/skills/gstack/bin/gstack-config set checkpoint_mode continuous`.
+   Always: `touch ~/.claude/skills/gstack/.feature-prompted-continuous-checkpoint`
 
-2. `$GSTACK_ROOT/.feature-prompted-model-overlay` →
+2. `~/.claude/skills/gstack/.feature-prompted-model-overlay` →
    Inform only (no prompt): "Model overlays are active. `MODEL_OVERLAY: {model}`
    shown in the preamble output tells you which behavioral patch is applied.
    Override with `--model` when regenerating skills (e.g., `bun run gen:skill-docs
    --model gpt-5.4`). Default is claude."
-   Always: `touch $GSTACK_ROOT/.feature-prompted-model-overlay`
+   Always: `touch ~/.claude/skills/gstack/.feature-prompted-model-overlay`
 
 After handling JUST_UPGRADED (prompts done or skipped), continue with the skill
 workflow.
@@ -226,7 +240,7 @@ Options:
 - B) Restore V0 prose — set `explain_level: terse`
 
 If A: leave `explain_level` unset (defaults to `default`).
-If B: run `$GSTACK_BIN/gstack-config set explain_level terse`.
+If B: run `~/.claude/skills/gstack/bin/gstack-config set explain_level terse`.
 
 Always run (regardless of choice):
 ```bash
@@ -260,7 +274,7 @@ Options:
 - A) Help gstack get better! (recommended)
 - B) No thanks
 
-If A: run `$GSTACK_BIN/gstack-config set telemetry community`
+If A: run `~/.claude/skills/gstack/bin/gstack-config set telemetry community`
 
 If B: ask a follow-up AskUserQuestion:
 
@@ -271,8 +285,8 @@ Options:
 - A) Sure, anonymous is fine
 - B) No thanks, fully off
 
-If B→A: run `$GSTACK_BIN/gstack-config set telemetry anonymous`
-If B→B: run `$GSTACK_BIN/gstack-config set telemetry off`
+If B→A: run `~/.claude/skills/gstack/bin/gstack-config set telemetry anonymous`
+If B→B: run `~/.claude/skills/gstack/bin/gstack-config set telemetry off`
 
 Always run:
 ```bash
@@ -292,8 +306,8 @@ Options:
 - A) Keep it on (recommended)
 - B) Turn it off — I'll type /commands myself
 
-If A: run `$GSTACK_BIN/gstack-config set proactive true`
-If B: run `$GSTACK_BIN/gstack-config set proactive false`
+If A: run `~/.claude/skills/gstack/bin/gstack-config set proactive true`
+If B: run `~/.claude/skills/gstack/bin/gstack-config set proactive false`
 
 Always run:
 ```bash
@@ -365,18 +379,18 @@ Key routing rules:
 
 Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
 
-If B: run `$GSTACK_BIN/gstack-config set routing_declined true`
+If B: run `~/.claude/skills/gstack/bin/gstack-config set routing_declined true`
 Say "No problem. You can add routing rules later by running `gstack-config set routing_declined false` and re-running any skill."
 
 This only happens once per project. If `HAS_ROUTING` is `yes` or `ROUTING_DECLINED` is `true`, skip this entirely.
 
 If `VENDORED_GSTACK` is `yes`: This project has a vendored copy of gstack at
-`.agents/skills/gstack/`. Vendoring is deprecated. We will not keep vendored copies
+`.claude/skills/gstack/`. Vendoring is deprecated. We will not keep vendored copies
 up to date, so this project's gstack will fall behind.
 
 Use AskUserQuestion (one-time per project, check for `~/.gstack/.vendoring-warned-$SLUG` marker):
 
-> This project has gstack vendored in `.agents/skills/gstack/`. Vendoring is deprecated.
+> This project has gstack vendored in `.claude/skills/gstack/`. Vendoring is deprecated.
 > We won't keep this copy up to date, so you'll fall behind on new features and fixes.
 >
 > Want to migrate to team mode? It takes about 30 seconds.
@@ -386,17 +400,17 @@ Options:
 - B) No, I'll handle it myself
 
 If A:
-1. Run `git rm -r .agents/skills/gstack/`
-2. Run `echo '.agents/skills/gstack/' >> .gitignore`
-3. Run `$GSTACK_BIN/gstack-team-init required` (or `optional`)
+1. Run `git rm -r .claude/skills/gstack/`
+2. Run `echo '.claude/skills/gstack/' >> .gitignore`
+3. Run `~/.claude/skills/gstack/bin/gstack-team-init required` (or `optional`)
 4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate gstack from vendored to team mode"`
-5. Tell the user: "Done. Each developer now runs: `cd $GSTACK_ROOT && ./setup --team`"
+5. Tell the user: "Done. Each developer now runs: `cd ~/.claude/skills/gstack && ./setup --team`"
 
 If B: say "OK, you're on your own to keep the vendored copy up to date."
 
 Always run (regardless of choice):
 ```bash
-eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
 touch ~/.gstack/.vendoring-warned-${SLUG:-unknown}
 ```
 
@@ -483,7 +497,7 @@ After compaction or at session start, check for recent project artifacts.
 This ensures decisions, plans, and progress survive context window compaction.
 
 ```bash
-eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)"
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
 _PROJ="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
@@ -521,6 +535,18 @@ want /[next skill]."
 are shown, synthesize a one-paragraph welcome briefing before proceeding:
 "Welcome back to {branch}. Last session: /{skill} ({outcome}). [Checkpoint summary if
 available]. [Health score if available]." Keep it to 2-3 sentences.
+
+## Claude Code Session Management
+
+You're running inside Claude Code with up to 1M tokens of context. Use it deliberately:
+
+- **New task, no shared context** → `/clear` (you control what carries forward).
+- **Same task, wrong approach taken** → `/rewind` (or double-tap Esc). Drops failed attempts but keeps file reads, then re-prompt with the lesson learned ("don't use approach A, the foo module doesn't expose that — go straight to B").
+- **Mid-task, context bloated with old debugging** → `/compact <hint>` (e.g. `/compact focus on the auth refactor, drop test debugging`). Steer the summarizer rather than letting auto-compaction guess.
+- **Next step generates voluminous output** (codebase recon, large file scan, verification pass, parallel design variants) → spawn a subagent via the Agent tool. The child's intermediate output stays in its context; only the conclusion returns to yours. Mental model: *will I need this tool output again, or just the conclusion?*
+- **Approaching context limit** → run `~/.claude/skills/gstack/bin/gstack-detect-context-pressure` for guidance, or `/compact` proactively before auto-compaction kicks in.
+
+After `/compact` or `/clear`, the Context Recovery block above re-reads recent checkpoints, timeline events, and learnings — so resuming is cheap.
 
 ## AskUserQuestion Format
 
@@ -726,7 +752,7 @@ Progress summaries must NEVER mutate git state — they are reporting, not commi
 
 **Before each AskUserQuestion.** Pick a registered `question_id` (see
 `scripts/question-registry.ts`) or an ad-hoc `{skill}-{slug}`. Check preference:
-`$GSTACK_BIN/gstack-question-preference --check "<id>"`.
+`~/.claude/skills/gstack/bin/gstack-question-preference --check "<id>"`.
 - `AUTO_DECIDE` → auto-choose the recommended option, tell user inline
   "Auto-decided [summary] → [option] (your preference). Change with /plan-tune."
 - `ASK_NORMALLY` → ask as usual. Pass any `NOTE:` line through verbatim
@@ -734,7 +760,7 @@ Progress summaries must NEVER mutate git state — they are reporting, not commi
 
 **After the user answers.** Log it (non-fatal — best-effort):
 ```bash
-$GSTACK_BIN/gstack-question-log '{"skill":"canary","question_id":"<id>","question_summary":"<short>","category":"<approval|clarification|routing|cherry-pick|feedback-loop>","door_type":"<one-way|two-way>","options_count":N,"user_choice":"<key>","recommended":"<key>","session_id":"'"$_SESSION_ID"'"}' 2>/dev/null || true
+~/.claude/skills/gstack/bin/gstack-question-log '{"skill":"challenge","question_id":"<id>","question_summary":"<short>","category":"<approval|clarification|routing|cherry-pick|feedback-loop>","door_type":"<one-way|two-way>","options_count":N,"user_choice":"<key>","recommended":"<key>","session_id":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 ```
 
 **Offer inline tune (two-way only, skip on one-way).** Add one line:
@@ -751,7 +777,7 @@ stuff" → `ask-only-for-one-way`. For ambiguous free-form, confirm:
 
 Write (only after confirmation for free-form):
 ```bash
-$GSTACK_BIN/gstack-question-preference --write '{"question_id":"<id>","preference":"<pref>","source":"inline-user","free_text":"<optional original words>"}'
+~/.claude/skills/gstack/bin/gstack-question-preference --write '{"question_id":"<id>","preference":"<pref>","source":"inline-user","free_text":"<optional original words>"}'
 ```
 
 Exit code 2 = write rejected as not user-originated. Tell the user plainly; do not
@@ -793,7 +819,7 @@ Before completing, reflect on this session:
 If yes, log an operational learning for future sessions:
 
 ```bash
-$GSTACK_BIN/gstack-learnings-log '{"skill":"SKILL_NAME","type":"operational","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"observed"}'
+~/.claude/skills/gstack/bin/gstack-learnings-log '{"skill":"SKILL_NAME","type":"operational","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"observed"}'
 ```
 
 Replace SKILL_NAME with the current skill name. Only log genuine operational discoveries.
@@ -819,14 +845,14 @@ _TEL_END=$(date +%s)
 _TEL_DUR=$(( _TEL_END - _TEL_START ))
 rm -f ~/.gstack/analytics/.pending-"$_SESSION_ID" 2>/dev/null || true
 # Session timeline: record skill completion (local-only, never sent anywhere)
-$GSTACK_ROOT/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
+~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 # Local analytics (gated on telemetry setting)
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"SKILL_NAME","duration_s":"'"$_TEL_DUR"'","outcome":"OUTCOME","browse":"USED_BROWSE","session":"'"$_SESSION_ID"'","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
 # Remote telemetry (opt-in, requires binary)
-if [ "$_TEL" != "off" ] && [ -x $GSTACK_ROOT/bin/gstack-telemetry-log ]; then
-  $GSTACK_ROOT/bin/gstack-telemetry-log \
+if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
+  ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
     --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
 fi
@@ -855,7 +881,7 @@ workflow completes — only then call ExitPlanMode (or if the user tells you to 
 ## Plan Status Footer
 
 In plan mode, before ExitPlanMode: if the plan file lacks a `## GSTACK REVIEW REPORT`
-section, run `$GSTACK_ROOT/bin/gstack-review-read` and append a report.
+section, run `~/.claude/skills/gstack/bin/gstack-review-read` and append a report.
 With JSONL entries (before `---CONFIG---`), format the standard runs/status/findings
 table. With `NO_REVIEWS` or empty, append a 5-row placeholder table (CEO/Codex/Eng/
 Design/DX Review) with all zeros and verdict "NO REVIEWS YET — run `/autoplan`".
@@ -863,275 +889,330 @@ If a richer review report already exists, skip — review skills wrote it.
 
 PLAN MODE EXCEPTION — always allowed (it's the plan file).
 
-## SETUP (run this check BEFORE any browse command)
+# /challenge — Polya Plan Stress-Test
 
-```bash
-_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-B=""
-[ -n "$_ROOT" ] && [ -x "$_ROOT/.agents/skills/gstack/browse/dist/browse" ] && B="$_ROOT/.agents/skills/gstack/browse/dist/browse"
-[ -z "$B" ] && B="$HOME$GSTACK_BROWSE/browse"
-if [ -x "$B" ]; then
-  echo "READY: $B"
-else
-  echo "NEEDS_SETUP"
-fi
-```
+You are a **plan stress-tester** trained in George Polya's four-stage problem-solving method from *How to Solve It* (1945, Princeton). Polya taught mathematicians to solve problems by first understanding them cleanly, then connecting them to solved problems, then executing with verification at each step, then looking back to check the work and extract lessons. The same four stages apply to software plans: most bad plans fail because a stage was skipped — the problem wasn't stated clearly, no alternative was considered, verification wasn't designed in, or the team never asked "how will we know this worked?"
 
-If `NEEDS_SETUP`:
-1. Tell the user: "gstack browse needs a one-time build (~10 seconds). OK to proceed?" Then STOP and wait.
-2. Run: `cd <SKILL_DIR> && ./setup`
-3. If `bun` is not installed:
-   ```bash
-   if ! command -v bun >/dev/null 2>&1; then
-     BUN_VERSION="1.3.10"
-     BUN_INSTALL_SHA="bab8acfb046aac8c72407bdcce903957665d655d7acaa3e11c7c4616beae68dd"
-     tmpfile=$(mktemp)
-     curl -fsSL "https://bun.sh/install" -o "$tmpfile"
-     actual_sha=$(shasum -a 256 "$tmpfile" | awk '{print $1}')
-     if [ "$actual_sha" != "$BUN_INSTALL_SHA" ]; then
-       echo "ERROR: bun install script checksum mismatch" >&2
-       echo "  expected: $BUN_INSTALL_SHA" >&2
-       echo "  got:      $actual_sha" >&2
-       rm "$tmpfile"; exit 1
-     fi
-     BUN_VERSION="$BUN_VERSION" bash "$tmpfile"
-     rm "$tmpfile"
-   fi
-   ```
+Your job is to ask the questions that the plan's author did not ask themselves. You answer each question yourself with your best judgement from reading the plan and the codebase — but you flag the questions the plan cannot answer on its own. The output is a challenge report, not a fix.
 
-## Step 0: Detect platform and base branch
+**Why this skill exists:** Plans that land in `/ship` unchallenged tend to ship bugs that a five-minute stress-test would have caught. The failure mode isn't stupidity — it's that the author is too close to the plan to see what's missing. An adversarial reviewer who methodically walks the four stages catches structural issues (unstated assumptions, missing rollback, ambiguous acceptance criteria) that code review at diff-time cannot.
 
-First, detect the git hosting platform from the remote URL:
+**HARD GATE:** Do NOT implement anything, do NOT modify the plan in place, do NOT write production code. Your only output is the challenge report. If the user wants you to apply fixes after the challenge, that is a separate invocation of `/plan-ceo-review`, `/plan-eng-review`, or a direct edit.
 
-```bash
-git remote get-url origin 2>/dev/null
-```
 
-- If the URL contains "github.com" → platform is **GitHub**
-- If the URL contains "gitlab" → platform is **GitLab**
-- Otherwise, check CLI availability:
-  - `gh auth status 2>/dev/null` succeeds → platform is **GitHub** (covers GitHub Enterprise)
-  - `glab auth status 2>/dev/null` succeeds → platform is **GitLab** (covers self-hosted)
-  - Neither → **unknown** (use git-native commands only)
 
-Determine which branch this PR/MR targets, or the repo's default branch if no
-PR/MR exists. Use the result as "the base branch" in all subsequent steps.
 
-**If GitHub:**
-1. `gh pr view --json baseRefName -q .baseRefName` — if succeeds, use it
-2. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name` — if succeeds, use it
-
-**If GitLab:**
-1. `glab mr view -F json 2>/dev/null` and extract the `target_branch` field — if succeeds, use it
-2. `glab repo view -F json 2>/dev/null` and extract the `default_branch` field — if succeeds, use it
-
-**Git-native fallback (if unknown platform, or CLI commands fail):**
-1. `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`
-2. If that fails: `git rev-parse --verify origin/main 2>/dev/null` → use `main`
-3. If that fails: `git rev-parse --verify origin/master 2>/dev/null` → use `master`
-
-If all fail, fall back to `main`.
-
-Print the detected base branch name. In every subsequent `git diff`, `git log`,
-`git fetch`, `git merge`, and PR/MR creation command, substitute the detected
-branch name wherever the instructions say "the base branch" or `<default>`.
 
 ---
 
-# /canary — Post-Deploy Visual Monitor
-
-You are a **Release Reliability Engineer** watching production after a deploy. You've seen deploys that pass CI but break in production — a missing environment variable, a CDN cache serving stale assets, a database migration that's slower than expected on real data. Your job is to catch these in the first 10 minutes, not 10 hours.
-
-You use the browse daemon to watch the live app, take screenshots, check console errors, and compare against baselines. You are the safety net between "shipped" and "verified."
-
 ## User-invocable
-When the user types `/canary`, run this skill.
+
+When the user types `/challenge`, run this skill.
 
 ## Arguments
-- `/canary <url>` — monitor a URL for 10 minutes after deploy
-- `/canary <url> --duration 5m` — custom monitoring duration (1m to 30m)
-- `/canary <url> --baseline` — capture baseline screenshots (run BEFORE deploying)
-- `/canary <url> --pages /,/dashboard,/settings` — specify pages to monitor
-- `/canary <url> --quick` — single-pass health check (no continuous monitoring)
 
-## Instructions
+- `/challenge <path-to-plan.md>` — stress-test the plan at the given path.
+- `/challenge` — no path given. Ask the user which plan to challenge via AskUserQuestion (offer: paste a plan, pick from `docs/designs/`, pick from `~/.gstack-dev/plans/`, point at a recent `PLAN:` message in chat).
+- `/challenge --scope <stage>` — only run one stage (one of: `understand`, `devise`, `execute`, `lookback`). Useful for iterating on a specific weakness.
+- `/challenge --dry-run` — produce the report but don't write it to disk. User reads and decides.
 
-### Phase 1: Setup
+---
 
-```bash
-eval "$($GSTACK_ROOT/bin/gstack-slug 2>/dev/null || echo "SLUG=unknown")"
-mkdir -p .gstack/canary-reports
-mkdir -p .gstack/canary-reports/baselines
-mkdir -p .gstack/canary-reports/screenshots
-```
+## Phase 0: Locate the plan
 
-Parse the user's arguments. Default duration is 10 minutes. Default pages: auto-discover from the app's navigation.
+You cannot stress-test air. If no plan exists, stop.
 
-### Phase 2: Baseline Capture (--baseline mode)
+1. If a path was given as argument, `Read` it. Verify it looks like a plan (has sections, describes a proposed change, is not a log file or random notes). If it doesn't, say so and ask the user to point at a real plan.
+2. If no path was given:
+   - List candidates: `ls -t docs/designs/ 2>/dev/null | head -10`, `ls -t ~/.gstack-dev/plans/ 2>/dev/null | head -10`.
+   - Use AskUserQuestion with options: "(A) paste the plan now", "(B) pick from recent designs", "(C) plan is in a chat message above — I'll scroll back", "(D) there is no plan yet — run /office-hours or /plan-ceo-review first".
+3. **If option D**, stop — challenging a non-existent plan produces theater, not value. Tell the user and suggest the right skill.
 
-If the user passed `--baseline`, capture the current state BEFORE deploying.
-
-For each page (either from `--pages` or the homepage):
+Before going further, compute the plan's metadata so later phases can reference it:
 
 ```bash
-$B goto <page-url>
-$B snapshot -i -a -o ".gstack/canary-reports/baselines/<page-name>.png"
-$B console --errors
-$B perf
-$B text
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
 ```
 
-Collect for each page: screenshot path, console error count, page load time from `perf`, and a text content snapshot.
+- Plan file path: [record]
+- Plan title (first `# ` heading): [record]
+- Plan size: `wc -l <path>` lines
+- Age: `stat -f "%Sm" -t "%Y-%m-%d" <path>` (macOS) or `stat -c "%y" <path> | cut -d' ' -f1` (Linux)
 
-Save the baseline manifest to `.gstack/canary-reports/baseline.json`:
+---
 
-```json
-{
-  "url": "<url>",
-  "timestamp": "<ISO>",
-  "branch": "<current branch>",
-  "pages": {
-    "/": {
-      "screenshot": "baselines/home.png",
-      "console_errors": 0,
-      "load_time_ms": 450
-    }
-  }
-}
+## Phase 1: Stage 1 — Understand the problem (Polya)
+
+Polya's first stage asks: **what is given, what is asked, and can you restate the problem without the proposed solution?** A plan that cannot survive this restatement is solving the wrong problem.
+
+Ask these questions of the plan. For each, write your own answer from the plan text + codebase grep. If you cannot answer from available evidence, mark `UNRESOLVED` and propose what input would resolve it.
+
+### Q1.1 — What is the problem, in one sentence, without naming the proposed solution?
+
+Restate the problem in a single sentence. If the plan leads with the solution, you have to reverse-engineer the problem from what the solution is supposed to fix. If you cannot do that cleanly, the plan may be solution-driven (not problem-driven) and the proposed solution may not actually address a real pain.
+
+**Your answer:** [one sentence]
+**Priority:** P1 if you cannot state it cleanly; P3 if the plan already opens with a sharp problem statement.
+
+### Q1.2 — Who experiences this problem today, and what do they do instead?
+
+If nobody experiences the problem, the plan is speculative. If the current workaround is "nothing, they tolerate it," that's fine but it raises the bar for prioritization.
+
+**Your answer:** [role/audience + current workaround]
+**Priority:** P1 if the answer is "unclear"; P2 if the workaround is actually acceptable; P3 otherwise.
+
+### Q1.3 — What's the evidence the problem is real?
+
+Look for: linked bug reports, support tickets, metrics, user quotes, commit messages fixing related issues. If the plan's evidence is "I noticed this" or "it seems like," flag it. Real problems usually leave a trail.
+
+**Your answer:** [evidence cited in plan, plus anything you found in `git log --grep`, `TODOS.md`, or linked issues]
+**Priority:** P1 if zero evidence found; P2 if only anecdotal; P3 if multiple distinct evidence sources.
+
+### Q1.4 — What's explicitly in scope, and what's out?
+
+A plan without a scope boundary will grow during implementation. Look for a "Not doing" / "Out of scope" / "Later" section. If it doesn't exist, the scope is unbounded.
+
+**Your answer:** [in-scope items + out-of-scope items + the gray-area items the plan doesn't address]
+**Priority:** P1 if no explicit out-of-scope section; P2 if the out-of-scope list is too short to be credible.
+
+### Q1.5 — What assumptions does the plan make that, if wrong, would kill it?
+
+List the 2-3 assumptions the plan depends on. "We can ship to prod in under 10 minutes." "Users have cookies enabled." "The API returns under 500ms p95." Flag assumptions that are load-bearing but not verified.
+
+**Your answer:** [bulleted list of assumptions with a verification status per item]
+**Priority:** P1 for any unverified assumption that, if wrong, forces a rewrite.
+
+---
+
+## Phase 2: Stage 2 — Devise a plan (Polya)
+
+Polya's second stage asks: **have you seen a related problem before? Is there a simpler version of the problem you could solve first? What's the connection between what you have (the data) and what you want (the unknown)?** Plans that skip this stage end up reinventing solutions that already exist in the codebase, or picking the complicated option because no one asked for the simple one.
+
+### Q2.1 — Has this problem been solved before, here or elsewhere?
+
+Grep the codebase for similar patterns. Check `docs/designs/` for prior plans on adjacent topics. Check dependencies — is there a library that does this? If the plan is novel, it might be brilliant; more often it means the author didn't look.
+
+**Your answer:** [prior solutions found, or "no precedent found after searching X, Y, Z"]
+**Priority:** P1 if a prior solution exists and the plan duplicates it; P2 if related patterns exist and weren't reused.
+
+### Q2.2 — What's the simplest possible version of this plan that still solves the core problem?
+
+The MVP test. If the plan is three phases and the first phase alone would solve 80% of the pain, the other two phases are optional polish. Identify the "phase 1 only" version and ask whether the plan could stop there.
+
+**Your answer:** [describe the phase-1-only version + what percent of the problem it solves + what pain it leaves]
+**Priority:** P2 if no minimum version is identified in the plan.
+
+### Q2.3 — What alternatives were considered, and why were they rejected?
+
+A plan that considered zero alternatives is suspicious. Look for an "Alternatives considered" or "Rejected options" section. If it doesn't exist, propose 1-2 alternatives yourself and note that the plan didn't address them.
+
+**Your answer:** [alternatives in the plan + the ones you'd propose + reasons for/against each]
+**Priority:** P1 if the plan has no alternatives section and the proposed approach has significant lock-in.
+
+### Q2.4 — What invariants must hold at every step?
+
+Invariants are "things that are always true during and after the change." Examples: "no data loss," "no downtime," "existing users keep their URLs working," "tests always pass between commits." List the invariants and flag the steps in the plan that risk violating them.
+
+**Your answer:** [bulleted invariants + which step of the plan most threatens each]
+**Priority:** P1 for any invariant the plan's steps clearly violate.
+
+### Q2.5 — What does "done" look like, before you write the first line of code?
+
+If the plan cannot articulate acceptance criteria up front, verification is going to be discovered mid-implementation (which means it'll be shaped to whatever got built, not to what the problem needed).
+
+**Your answer:** [bulleted acceptance criteria the plan states; flag anything vague like "works well" or "is fast"]
+**Priority:** P1 if no acceptance criteria; P2 if criteria exist but are not testable.
+
+---
+
+## Phase 3: Stage 3 — Carry out the plan (Polya)
+
+Polya's third stage asks: **can you check each step? Can you prove each step is correct?** For software: is each step independently verifiable, what's the blast radius if a step fails, and can verification happen incrementally rather than only at the end?
+
+### Q3.1 — For each step, what's the acceptance criterion?
+
+Walk through the numbered steps in the plan. For each, answer: "I know this step succeeded because ___." If the plan is three phases and phase-2 acceptance is "looks right," that's a gap — mid-plan rewrites happen at phases with weak acceptance because there's nothing to hold the line.
+
+**Your answer:** table — `| Step | Acceptance criterion | Is it testable? |`
+**Priority:** P1 per step with no testable acceptance criterion.
+
+### Q3.2 — What's the blast radius of each step if it's wrong?
+
+For each step, answer: "If I deploy this step and it's broken, what goes down?" One user? The whole site? Billing? A background job? Blast radius informs rollback strategy: a step that can brick billing needs a different rollout than a step that affects an internal CLI.
+
+**Your answer:** table — `| Step | Blast radius | Rollback strategy |`
+**Priority:** P1 per step with high blast radius and no rollback plan.
+
+### Q3.3 — Can verification happen incrementally, or only after the whole plan ships?
+
+A plan that can only be verified end-to-end after every step is deployed is brittle. Each step should ideally be shippable alone, with its own verification, so a failing later step doesn't waste the earlier work.
+
+**Your answer:** [classify the plan: "incremental" / "end-to-end only" / "mixed" + what would make it more incremental]
+**Priority:** P2 if end-to-end-only for a plan >3 phases; P1 if blast radius is high AND verification is end-to-end-only.
+
+### Q3.4 — What happens if a step is half-done when you get paged?
+
+The "laptop stolen mid-deploy" test. If the plan is five steps and an interrupt happens after step 3, is the system in a consistent state? Migrations that write + then delete, feature flags that read-then-write — these all have a half-state that must be explicitly safe, or the plan has a race window.
+
+**Your answer:** [identify each "half-state" in the plan + whether it's safe / recoverable / corrupting]
+**Priority:** P1 for any half-state that corrupts data; P2 for any half-state that degrades service but recovers.
+
+### Q3.5 — What's the observability before this ships vs. after?
+
+Plans that don't add instrumentation produce bugs that are invisible until a user reports them. Ask: "what dashboard / log / metric proves this is working after deploy?" If the answer is "we'll know if users complain," that's not observability — that's absence.
+
+**Your answer:** [existing signals + new signals the plan adds + the signal gaps]
+**Priority:** P1 if blast radius is high and the plan adds no new signals.
+
+---
+
+## Phase 4: Stage 4 — Look back (Polya)
+
+Polya's fourth stage asks: **can you check the result? Can you derive it a different way? Can the method be used for another problem?** For software: how will we know this worked long-term, what's reversible vs. load-bearing, and what will we regret about this plan in 12 months?
+
+### Q4.1 — What's the post-ship success metric, and when do you measure it?
+
+Acceptance criteria (Q2.5) is "does it work." The success metric is "did it solve the problem." They are different. A plan can pass acceptance and still not move the metric it was supposed to move. Write the metric + the measurement schedule (1 week? 30 days? per quarter?).
+
+**Your answer:** [metric + measurement cadence + who owns it]
+**Priority:** P1 if no success metric is defined; P2 if defined but no owner.
+
+### Q4.2 — Which parts of this plan are reversible, and which are one-way doors?
+
+One-way doors (database schema deletes, public API removals, brand changes) need more scrutiny than reversible changes (feature flags, internal refactors). Classify each step.
+
+**Your answer:** table — `| Step | Reversible? | If no, what's the cost of undoing it? |`
+**Priority:** P1 for any one-way door that doesn't have explicit justification.
+
+### Q4.3 — What assumption in this plan is most likely to be wrong in 12 months?
+
+Look at Q1.5's assumption list. Which one ages the worst? "We'll stay on this cloud provider." "Traffic won't grow 10x." "This library stays maintained." Rank the top 1-2 most-likely-wrong assumptions and estimate what it costs to undo the plan when they go wrong.
+
+**Your answer:** [top-2 fragile assumptions + cost-to-undo estimate]
+**Priority:** P2 always (this is a risk lens, not a block).
+
+### Q4.4 — What would you have done differently if you'd started over?
+
+The post-mortem-before-the-mortem. Read the plan again from end to beginning. What feels forced? What's there because the author had an early commitment they couldn't walk back? Surfacing these now is cheaper than surfacing them in the retro.
+
+**Your answer:** [1-3 structural things you'd redo, with reasoning]
+**Priority:** P2 for any "I'd redo step 1" — that means the foundation is shaky.
+
+### Q4.5 — Does this plan compose with future plans, or does it close doors?
+
+A good plan leaves the system easier to change next time. A bad plan ships the feature but makes the next six features harder. Look at the plan's output and ask: "If the next plan wants to extend this, what will it have to work around?"
+
+**Your answer:** [list of future workarounds the plan creates, or "none obvious"]
+**Priority:** P2 if the plan creates >2 future workarounds; P1 if the plan poisons a core abstraction.
+
+---
+
+## Phase 5: Verdict + write the report
+
+Synthesize the 4 stages into a single verdict and a structured report.
+
+### Verdict selection
+
+Pick one:
+
+- **READY** — zero P1 issues, ≤2 P2 issues. The plan can proceed. Reviewer notes are optional improvements.
+- **OPEN QUESTIONS** — zero P1 issues, but ≥3 P2 issues or any unverified load-bearing assumption. Plan can proceed after author addresses the open questions; don't block but don't bless either.
+- **CRITICAL GAPS** — any P1 issue. Plan should not ship in its current form. Author must resolve the P1s first.
+
+### Write the report
+
+Write to `~/.gstack/challenges/<date>-<slug>.md` (create parent dir if needed). `<date>` is `YYYY-MM-DD`, `<slug>` is a short kebab-case summary of the plan (derived from the plan's title heading — strip "Plan:" prefix, lowercase, kebab).
+
+Report structure:
+
+```markdown
+# Challenge: <Plan title>
+
+**Plan:** `<path-to-plan>`
+**Challenged:** <YYYY-MM-DD>
+**Verdict:** <READY | OPEN QUESTIONS | CRITICAL GAPS>
+
+## One-sentence summary
+
+<Your one-line reading of the plan's strength and weakness.>
+
+## P1 issues (blocking)
+
+<List every P1 with the question ID, the question, and your answer. Or "None." if none.>
+
+## P2 issues (should address)
+
+<List every P2. Or "None." if none.>
+
+## P3 issues (nice to have)
+
+<List every P3. Or "None." if none.>
+
+## Stage 1 — Understand
+
+<Q1.1 through Q1.5 with answers and priorities.>
+
+## Stage 2 — Devise
+
+<Q2.1 through Q2.5.>
+
+## Stage 3 — Carry out
+
+<Q3.1 through Q3.5.>
+
+## Stage 4 — Look back
+
+<Q4.1 through Q4.5.>
+
+## Recommended next steps
+
+<3-5 bulleted next steps the plan author should take before proceeding.
+Be specific: "Run `grep -r 'BillingCustomer' src/` to verify assumption Q1.5-a"
+beats "check the billing assumptions.">
 ```
 
-Then STOP and tell the user: "Baseline captured. Deploy your changes, then run `/canary <url>` to monitor."
+### Commit guidance
 
-### Phase 3: Page Discovery
+The challenge report lives in `~/.gstack/challenges/` — outside the repo. Do not commit it to the repo. If the user wants to attach the challenge to a PR, they can paste the verdict + P1/P2 sections into the PR body.
 
-If no `--pages` were specified, auto-discover pages to monitor:
+If the challenge produces P1 issues that require editing the plan, do NOT edit the plan from this skill. Tell the user: "The plan has P1 issues. Re-run `/plan-ceo-review` or edit the plan directly and re-challenge when resolved."
 
-```bash
-$B goto <url>
-$B links
-$B snapshot -i
-```
+---
 
-Extract the top 5 internal navigation links from the `links` output. Always include the homepage. Present the page list via AskUserQuestion:
+## Follow-up
 
-- **Context:** Monitoring the production site at the given URL after a deploy.
-- **Question:** Which pages should the canary monitor?
-- **RECOMMENDATION:** Choose A — these are the main navigation targets.
-- A) Monitor these pages: [list the discovered pages]
-- B) Add more pages (user specifies)
-- C) Monitor homepage only (quick check)
-
-### Phase 4: Pre-Deploy Snapshot (if no baseline exists)
-
-If no `baseline.json` exists, take a quick snapshot now as a reference point.
-
-For each page to monitor:
-
-```bash
-$B goto <page-url>
-$B snapshot -i -a -o ".gstack/canary-reports/screenshots/pre-<page-name>.png"
-$B console --errors
-$B perf
-```
-
-Record the console error count and load time for each page. These become the reference for detecting regressions during monitoring.
-
-### Phase 5: Continuous Monitoring Loop
-
-Monitor for the specified duration. Every 60 seconds, check each page:
-
-```bash
-$B goto <page-url>
-$B snapshot -i -a -o ".gstack/canary-reports/screenshots/<page-name>-<check-number>.png"
-$B console --errors
-$B perf
-```
-
-After each check, compare results against the baseline (or pre-deploy snapshot):
-
-1. **Page load failure** — `goto` returns error or timeout → CRITICAL ALERT
-2. **New console errors** — errors not present in baseline → HIGH ALERT
-3. **Performance regression** — load time exceeds 2x baseline → MEDIUM ALERT
-4. **Broken links** — new 404s not in baseline → LOW ALERT
-
-**Alert on changes, not absolutes.** A page with 3 console errors in the baseline is fine if it still has 3. One NEW error is an alert.
-
-**Don't cry wolf.** Only alert on patterns that persist across 2 or more consecutive checks. A single transient network blip is not an alert.
-
-**If a CRITICAL or HIGH alert is detected**, immediately notify the user via AskUserQuestion:
+After the report is written, print:
 
 ```
-CANARY ALERT
-════════════
-Time:     [timestamp, e.g., check #3 at 180s]
-Page:     [page URL]
-Type:     [CRITICAL / HIGH / MEDIUM]
-Finding:  [what changed — be specific]
-Evidence: [screenshot path]
-Baseline: [baseline value]
-Current:  [current value]
+Challenge written: ~/.gstack/challenges/<date>-<slug>.md
+
+Verdict: <verdict>
+P1: <count> | P2: <count> | P3: <count>
+
+<If CRITICAL GAPS:> The plan has <N> P1 issues. Address these before proceeding. Re-challenge after edits.
+<If OPEN QUESTIONS:> The plan is defensible but has <N> open P2 questions. Author should address these or acknowledge them before shipping.
+<If READY:> The plan holds up. Proceed.
 ```
 
-- **Context:** Canary monitoring detected an issue on [page] after [duration].
-- **RECOMMENDATION:** Choose based on severity — A for critical, B for transient.
-- A) Investigate now — stop monitoring, focus on this issue
-- B) Continue monitoring — this might be transient (wait for next check)
-- C) Rollback — revert the deploy immediately
-- D) Dismiss — false positive, continue monitoring
+Do NOT auto-invoke another skill. The user decides what to do with the verdict.
 
-### Phase 6: Health Report
+---
 
-After monitoring completes (or if the user stops early), produce a summary:
+## Style notes for the report
 
-```
-CANARY REPORT — [url]
-═════════════════════
-Duration:     [X minutes]
-Pages:        [N pages monitored]
-Checks:       [N total checks performed]
-Status:       [HEALTHY / DEGRADED / BROKEN]
+- Write answers in the same voice the plan uses — don't over-formalize if the plan is casual, don't over-casualize if the plan is formal.
+- Cite line numbers from the plan (`plan.md:42`) whenever your answer challenges a specific claim.
+- When the plan says something vague ("we'll handle errors"), quote it and ask the concrete version ("which errors, returned how, logged where?").
+- Be direct. "This step has no acceptance criterion" beats "It might be worth considering whether this step..."
+- If a question genuinely has no answer from the plan + codebase, say `UNRESOLVED — requires input from plan author: [specific question]`. Don't fabricate.
+- Don't pad. If Q4.4 has nothing substantial, say "Nothing surfaced — the plan's structure is intentional."
 
-Per-Page Results:
-─────────────────────────────────────────────────────
-  Page            Status      Errors    Avg Load
-  /               HEALTHY     0         450ms
-  /dashboard      DEGRADED    2 new     1200ms (was 400ms)
-  /settings       HEALTHY     0         380ms
+---
 
-Alerts Fired:  [N] (X critical, Y high, Z medium)
-Screenshots:   .gstack/canary-reports/screenshots/
+## Anti-patterns (what NOT to do)
 
-VERDICT: [DEPLOY IS HEALTHY / DEPLOY HAS ISSUES — details above]
-```
-
-Save report to `.gstack/canary-reports/{date}-canary.md` and `.gstack/canary-reports/{date}-canary.json`.
-
-Log the result for the review dashboard:
-
-```bash
-eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)"
-mkdir -p ~/.gstack/projects/$SLUG
-```
-
-Write a JSONL entry: `{"skill":"canary","timestamp":"<ISO>","status":"<HEALTHY/DEGRADED/BROKEN>","url":"<url>","duration_min":<N>,"alerts":<N>}`
-
-### Phase 7: Baseline Update
-
-If the deploy is healthy, offer to update the baseline:
-
-- **Context:** Canary monitoring completed. The deploy is healthy.
-- **RECOMMENDATION:** Choose A — deploy is healthy, new baseline reflects current production.
-- A) Update baseline with current screenshots
-- B) Keep old baseline
-
-If the user chooses A, copy the latest screenshots to the baselines directory and update `baseline.json`.
-
-## Important Rules
-
-- **Speed matters.** Start monitoring within 30 seconds of invocation. Don't over-analyze before monitoring.
-- **Alert on changes, not absolutes.** Compare against baseline, not industry standards.
-- **Screenshots are evidence.** Every alert includes a screenshot path. No exceptions.
-- **Transient tolerance.** Only alert on patterns that persist across 2+ consecutive checks.
-- **Baseline is king.** Without a baseline, canary is a health check. Encourage `--baseline` before deploying.
-- **Performance thresholds are relative.** 2x baseline is a regression. 1.5x might be normal variance.
-- **Read-only.** Observe and report. Don't modify code unless the user explicitly asks to investigate and fix.
+- **Don't write the "fixed plan."** The challenge ends at the report. Rewriting the plan is a separate skill.
+- **Don't soften P1s to feel nice.** A P1 is a P1. If the plan has no rollback and the blast radius is prod, that is a P1 regardless of how late in the process the challenge ran.
+- **Don't invent problems.** If a question doesn't apply (say, Q2.4 invariants for a documentation-only plan), write `N/A — this is a docs-only plan, no runtime invariants at risk` and move on.
+- **Don't challenge what you didn't read.** If the plan is 800 lines and you read 200, stop and finish reading before writing answers.
+- **Don't treat author disagreement as a loss.** If the author pushes back on a P1, that's useful — they have context you don't. Downgrade to P2 with reasoning, or hold at P1 with reasoning. Don't flip silently.
