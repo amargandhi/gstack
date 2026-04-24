@@ -138,6 +138,14 @@ Evaluate:
 * Whether key flows deserve ASCII diagrams in the plan or in code comments.
 * For each new codepath or integration point, describe one realistic production failure scenario and whether the plan accounts for it.
 * **Distribution architecture:** If this introduces a new artifact (binary, package, container), how does it get built, published, and updated? Is the CI/CD pipeline part of the plan or deferred?
+* **Module depth** (Ousterhout, *A Philosophy of Software Design*, 2018). For each new or modified module, ask: deep (small interface, large implementation) or shallow (interface ≈ implementation)? Grep-able red flags — flag any as scope-reduction opportunities:
+  - **Pass-through method** — a method that does little except call another with a similar signature (`Controller.find(id) { return service.find(id) }`). Adds interface cost without hiding anything.
+  - **Pass-through variable** — a variable threaded through N layers and used only at the bottom. Every intermediate layer gets coupled to it.
+  - **Thin wrappers** — reflexive Decorator chains, or a class that wraps a widely-used API by a hair. Ousterhout names Java IO streams as the canonical anti-example.
+* **Design it twice** (Ousterhout, Ch. 11). For each new interface in the plan, did the author consider ≥ 2 radically different designs (minimalist / flexible / common-case / ports-and-adapters)? If the plan presents one option as inevitable, ask for alternates before accepting.
+* **Conceptual integrity** (Brooks, *The Mythical Man-Month*, 1975). Does this plan add features that fight the existing design's logic, or introduce a second idiom where the codebase already has one? Flag as PLANBLOCKER — "one set of design ideas" beats more functionality.
+
+→ Full vocabulary with source citations: `docs/DESIGN_TESTS.md`.
 
 **STOP.** For each issue found in this section, call AskUserQuestion individually. One issue per call. Present options, state your recommendation, explain WHY. Do NOT batch multiple issues into one AskUserQuestion. Only proceed to the next section after ALL issues in this section are resolved.
 

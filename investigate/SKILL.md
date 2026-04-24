@@ -1051,11 +1051,20 @@ Once root cause is confirmed:
 
 1. **Fix the root cause, not the symptom.** The smallest change that eliminates the actual problem.
 
-2. **Minimal diff:** Fewest files touched, fewest lines changed. Resist the urge to refactor adjacent code.
+2. **Minimal diff:** Fewest files touched, fewest lines changed. Resist the urge to refactor adjacent code. If the code near the fix genuinely needs tidying, extract it into a **separate, structural-only commit before the fix** (Beck, *Tidy First?*, 2024 — never mix structural and behavioral changes in one commit). See `docs/DESIGN_TESTS.md` §Structural-vs-behavioral.
 
-3. **Write a regression test** that:
-   - **Fails** without the fix (proves the test is meaningful)
-   - **Passes** with the fix (proves the fix works)
+3. **Regression test discipline:**
+
+   3a. **If the code path has no existing tests → characterization test first** (Feathers, *Working Effectively with Legacy Code*, 2004). Write a test that locks down current behavior (including the bug and any quirks). Run it. Green. Only now make your change. If the characterization test starts failing for a reason you didn't expect, your fix has a side effect you didn't know about. See `docs/DESIGN_TESTS.md` §Characterization-tests-first.
+
+   3b. **Then RED → GREEN → REFACTOR** (Beck, *Test-Driven Development by Example*, 2002):
+   - **RED:** write the failing test that captures the bug's correct behavior.
+   - **GREEN:** minimal code to pass.
+   - **REFACTOR:** clean up with all tests green.
+
+   3c. **One cycle at a time.** If the fix needs multiple tests, complete RED → GREEN for one before starting the next. **Never** "write all tests first, then all code" — that produces imagined-behavior tests, not real ones.
+
+   3d. **Assert on contracts, not paths** (Parnas 1972 + Meyer 1988). Tests describe **what** the module promises callers (inputs → outputs, observable side effects) — not **how** the module is structured internally. Tests that name private methods or file paths break on refactor even when behavior is unchanged. See `docs/DESIGN_TESTS.md` §Information-hiding-and-contracts.
 
 4. **Run the full test suite.** Paste the output. No regressions allowed.
 

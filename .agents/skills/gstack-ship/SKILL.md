@@ -2453,6 +2453,7 @@ user via AskUserQuestion rather than destroying non-WIP commits.
    - Migrations are their own commit (or grouped with the model they support)
    - Config/route changes can group with the feature they enable
    - If the total diff is small (< 50 lines across < 4 files), a single commit is fine
+   - **Structural vs behavioral axis** (Beck, *Tidy First?*, 2024): a commit is either **structural** (rename, extract, move, dead-code removal, reformat — tests pass identically before and after without modification) or **behavioral** (adds, changes, or removes user-visible behavior — tests change, are added, or start passing). **Never mix both in one commit.** If a diff does both, split: structural commit first ("make the change easy"), then the behavioral one ("then make the easy change"). See `docs/DESIGN_TESTS.md` §Structural-vs-behavioral for why.
 
 4. **Each commit must be independently valid** — no broken imports, no references to code that doesn't exist yet. Order commits so dependencies come first.
 

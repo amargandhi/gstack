@@ -328,8 +328,28 @@ Examples of good bisection:
 - Template changes separate from generated file regeneration
 - Mechanical refactors separate from new features
 
+### The sharpest axis: structural vs behavioral (Beck, *Tidy First?*, 2024)
+
+A commit is either:
+
+- **Structural** — rename, extract, move, dead-code removal, reformat, dependency
+  tidying. Does NOT change program behavior. Tests pass identically before and
+  after without modification.
+- **Behavioral** — adds, changes, or removes user-visible behavior. Tests change,
+  are added, or start passing.
+
+**Never mix structural and behavioral changes in the same commit.** If the diff
+does both, split: structural commit first ("make the change easy"), then the
+behavioral one ("then make the easy change"). This is the axis that makes
+`git bisect` actually work — a structural commit can never introduce a behavior
+regression, so bisect skips past it deterministically.
+
+→ Full canonical vocabulary (module depth, contracts, characterization tests,
+RED-GREEN, tracer-bullet / walking-skeleton / prototype, conceptual integrity):
+`docs/DESIGN_TESTS.md`.
+
 When the user says "bisect commit" or "bisect and push," split staged/unstaged
-changes into logical commits and push.
+changes into logical commits (structural first, behavioral second) and push.
 
 ## Slop-scan: AI code quality, not AI code hiding
 
