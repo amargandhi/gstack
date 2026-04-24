@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+# gstack-install-git-guards — install/uninstall the dangerous-git PreToolUse hook in
+# Claude Code's settings.json.
+#
+# Usage:
+#   gstack-install-git-guards              install the guard
+#   gstack-install-git-guards --uninstall  remove the guard
+#   gstack-install-git-guards --status     show whether it is installed
+#   gstack-install-git-guards --dry-run    preview changes without writing
+#   gstack-install-git-guards --help
+#
+# What it does:
+#   Registers scripts/block-dangerous-git.sh as a PreToolUse hook with matcher="Bash"
+#   in ~/.claude/settings.json. The hook blocks these operations on agent-issued Bash calls:
+#     • git push --force to main/master/develop/trunk
+#     • git reset --hard
+#     • git clean -f
+#     • git branch -D
+#     • git checkout . / git restore .
+#     • git rebase -i (can't work in non-interactive shell)
+#     • --no-verify on push/commit
+#
+#   The user's own terminal is NEVER affected — only Bash tool calls from Claude Code.
+#
+#   Writes atomically via tmp + rename.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+HOOK_SCRIPT="$SOURCE_DIR/scripts/block-dangerous-git.sh"
+SETTINGS_FILE="${GSTACK_SETTINGS_FILE:-$HOME/.claude/settings.json}"
+
+ACTION="install"
+DRY_RUN=0
+
+print_help() {
+  cat <<EOF
+gstack-install-git-guards — install a Claude Code PreToolUse hook that blocks
+destructive git operations (force-push to main, reset --hard, clean -f, etc.)
+
+Usage:
+  gstack-install-git-guards              install the guard (idempotent)
+  gstack-install-git-guards --uninstall  remove the guard
+  gstack-install-git-guards --status     show whether it is installed
+  gstack-install-git-guards --dry-run    preview what would change
+  gstack-install-git-guards --help       this message
+
+Hook script: scripts/block-dangerous-git.sh
+Settings:    $SETTINGS_FILE
+
+The hook only affects Bash tool calls made by Claude Code. Your own terminal is
+never touched. The guard can always be bypassed by running the command in your
+terminal directly.
+
+Blocked patterns:
+  • git push --force to main/master/develop/trunk
+  • git reset --hard
+  • git clean -f / -fd / -fx
+  • git branch -D
+  • git checkout . / git restore .
+  • git rebase -i
+  • git push/commit --no-verify
+EOF
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --uninstall|--remove) ACTION="uninstall" ;;
+    --status|--check)     ACTION="status" ;;
+    --dry-run)            DRY_RUN=1 ;;
+    --help|-h)            print_help; exit 0 ;;
+    *) echo "Unknown flag: $arg" >&2; print_help >&2; exit 1 ;;
+  esac
+done
+
+if ! command -v bun >/dev/null 2>&1; then
+  echo "Error: bun is required but not installed." >&2
+  echo "       Install bun from https://bun.sh and rerun." >&2
+  exit 1
+fi
+
+# Verify the hook script exists when installing.
+if [ "$ACTION" = "install" ] && [ ! -x "$HOOK_SCRIPT" ]; then
+  echo "Error: hook script not found or not executable at $HOOK_SCRIPT" >&2
+  echo "       Run: chmod +x $HOOK_SCRIPT" >&2
+  exit 1
+fi
+
+case "$ACTION" in
+  status)
+    GSTACK_SETTINGS_PATH="$SETTINGS_FILE" GSTACK_HOOK_SCRIPT="$HOOK_SCRIPT" bun -e '
+      const fs = require("fs");
+      const settingsPath = process.env.GSTACK_SETTINGS_PATH;
+      const hookScript = process.env.GSTACK_HOOK_SCRIPT;
+
+      let settings = {};
+      try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); }
+      catch { console.log("NOT_INSTALLED (settings.json missing or unreadable)"); process.exit(0); }
+
+      const entries = (settings.hooks && settings.hooks.PreToolUse) || [];
+      const matches = entries.filter(e =>
+        e.hooks && e.hooks.some(h => h.command && h.command.includes("block-dangerous-git.sh"))
+      );
+
+      if (matches.length === 0) {
+        console.log("NOT_INSTALLED");
+      } else if (matches.length === 1 && matches[0].matcher === "Bash") {
+        console.log("INSTALLED (matcher=Bash, " + matches[0].hooks[0].command + ")");
+      } else {
+        console.log("INSTALLED but with unexpected shape (" + matches.length + " entries). Consider --uninstall then --install to normalize.");
+      }
+    '
+    ;;
+
+  install)
+    if [ "$DRY_RUN" = "1" ]; then
+      echo "[dry-run] Would add PreToolUse hook to $SETTINGS_FILE:"
+      echo "          matcher: Bash"
+      echo "          command: $HOOK_SCRIPT"
+      exit 0
+    fi
+    GSTACK_SETTINGS_PATH="$SETTINGS_FILE" GSTACK_HOOK_SCRIPT="$HOOK_SCRIPT" bun -e '
+      const fs = require("fs");
+      const path = require("path");
+      const settingsPath = process.env.GSTACK_SETTINGS_PATH;
+      const hookScript = process.env.GSTACK_HOOK_SCRIPT;
+
+      // Ensure parent dir exists.
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+
+      let settings = {};
+      try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); } catch {}
+
+      if (!settings.hooks) settings.hooks = {};
+      if (!settings.hooks.PreToolUse) settings.hooks.PreToolUse = [];
+
+      // Dedup: is the same script already registered?
+      const alreadyInstalled = settings.hooks.PreToolUse.some(entry =>
+        entry.hooks && entry.hooks.some(h => h.command && h.command.includes("block-dangerous-git.sh"))
+      );
+
+      if (alreadyInstalled) {
+        console.log("git-guards hook already installed — nothing to do.");
+        process.exit(0);
+      }
+
+      settings.hooks.PreToolUse.push({
+        matcher: "Bash",
+        hooks: [{ type: "command", command: hookScript }]
+      });
+
+      const tmp = settingsPath + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify(settings, null, 2) + "\n");
+      fs.renameSync(tmp, settingsPath);
+      console.log("Installed git-guards hook. Active on: " + settingsPath);
+      console.log("Blocked patterns: force-push to main, reset --hard, clean -f, branch -D, checkout ., rebase -i, --no-verify");
+      console.log("To remove: gstack-install-git-guards --uninstall");
+    '
+    ;;
+
+  uninstall)
+    if [ ! -f "$SETTINGS_FILE" ]; then
+      echo "Nothing to do — $SETTINGS_FILE does not exist."
+      exit 0
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+      echo "[dry-run] Would remove PreToolUse entries referencing block-dangerous-git.sh from $SETTINGS_FILE."
+      exit 0
+    fi
+    GSTACK_SETTINGS_PATH="$SETTINGS_FILE" bun -e '
+      const fs = require("fs");
+      const settingsPath = process.env.GSTACK_SETTINGS_PATH;
+
+      let settings = {};
+      try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); }
+      catch { console.log("settings.json unreadable — nothing to do."); process.exit(0); }
+
+      if (!settings.hooks || !settings.hooks.PreToolUse) {
+        console.log("No PreToolUse hooks registered — nothing to do.");
+        process.exit(0);
+      }
+
+      const before = settings.hooks.PreToolUse.length;
+      settings.hooks.PreToolUse = settings.hooks.PreToolUse.filter(entry =>
+        !(entry.hooks && entry.hooks.some(h => h.command && h.command.includes("block-dangerous-git.sh")))
+      );
+      const removed = before - settings.hooks.PreToolUse.length;
+
+      if (settings.hooks.PreToolUse.length === 0) delete settings.hooks.PreToolUse;
+      if (settings.hooks && Object.keys(settings.hooks).length === 0) delete settings.hooks;
+
+      const tmp = settingsPath + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify(settings, null, 2) + "\n");
+      fs.renameSync(tmp, settingsPath);
+
+      if (removed === 0) console.log("git-guards hook was not installed — nothing removed.");
+      else console.log("Removed " + removed + " git-guards hook entrie(s) from " + settingsPath + ".");
+    '
+    ;;
+esac
