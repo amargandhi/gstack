@@ -160,6 +160,12 @@ Evaluate:
 * Areas that are over-engineered or under-engineered relative to my preferences.
 * Existing ASCII diagrams in touched files — are they still accurate after this change?
 
+**Name the smell when you see one.** The checklist below gives the canonical vocabulary. Use it in findings (e.g. "this plan introduces **Shotgun Surgery** — the currency addition requires edits in Pricing, Invoice, and Report; consolidate into CurrencyContext"). Naming lets the author look up the full diagnostic + refactoring direction; re-deriving vocabulary in prose every time wastes their attention.
+
+{{CODE_SMELLS_CHECKLIST}}
+
+**Scope discipline:** only flag smells that actually appear in the plan (or are one-hop reads away in files the plan edits). Don't expand into unrelated code. Pair with the contracts vocabulary in `docs/DESIGN_TESTS.md` — smells flag symptoms; module-depth and design-by-contract flag root causes.
+
 **STOP.** For each issue found in this section, call AskUserQuestion individually. One issue per call. Present options, state your recommendation, explain WHY. Do NOT batch multiple issues into one AskUserQuestion. Only proceed to the next section after ALL issues in this section are resolved.
 
 ### 3. Test review

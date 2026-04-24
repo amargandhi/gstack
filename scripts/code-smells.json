@@ -1,0 +1,79 @@
+{
+  "$source_primary": "Fowler, Refactoring: Improving the Design of Existing Code (2nd ed., 2018), Chapter 3 'Bad Smells in Code'",
+  "$source_extension": "Ousterhout, A Philosophy of Software Design (2nd ed., 2021), Chapters 5-7",
+  "$grouping_source": "Informal grouping popularized by Kerievsky's Refactoring to Patterns (2004) — Fowler's own presentation is alphabetical",
+  "$note": "Skills reference this list via {{CODE_SMELLS_CHECKLIST}}. Keep entries concise — one-sentence diagnostic, one-sentence fix direction.",
+  "categories": [
+    {
+      "name": "Bloaters",
+      "description": "Code/classes/methods that have grown so large they're hard to work with. Usually accrete over time, rarely born this way.",
+      "smells": [
+        { "name": "Long Function", "diagnostic": "A method longer than a screenful — or whose body needs comments to navigate.", "fix": "Extract Function along the comments/paragraphs. If the method mostly dispatches, consider Replace Conditional with Polymorphism." },
+        { "name": "Long Parameter List", "diagnostic": "More than 3-4 params, or a mix of params the caller has to compute together each time.", "fix": "Introduce Parameter Object. If some params come from another object, Preserve Whole Object." },
+        { "name": "Large Class", "diagnostic": "A class with many fields/methods that seems to do too much. Probably has multiple responsibilities.", "fix": "Extract Class along cohesion boundaries — which fields move together with which methods?" },
+        { "name": "Primitive Obsession", "diagnostic": "Strings, ints, booleans used where a small domain type would encode the invariants (phone numbers, money, coordinates).", "fix": "Replace Data Value with Object. Even a tiny wrapper pays for itself on validation." },
+        { "name": "Data Clumps", "diagnostic": "The same 3+ fields appear together in many classes, method signatures, or parameter lists.", "fix": "Extract Class for the clump. If they travel with behavior, the class will attract methods too." }
+      ]
+    },
+    {
+      "name": "Object-Orientation Abusers",
+      "description": "Cases where OO mechanisms are present but misapplied.",
+      "smells": [
+        { "name": "Repeated Switches", "diagnostic": "The same switch/if-else ladder on a type code appears in 3+ places.", "fix": "Replace Conditional with Polymorphism. Pushes the branches into subclasses or a strategy object." },
+        { "name": "Refused Bequest", "diagnostic": "A subclass inherits fields/methods it doesn't want or that don't apply.", "fix": "Replace Inheritance with Delegation, or extract a common interface and have both implement it." },
+        { "name": "Alternative Classes with Different Interfaces", "diagnostic": "Two classes do the same job but with different method names/signatures.", "fix": "Rename to align interfaces, then extract a common supertype. Or keep one and delete the other." }
+      ]
+    },
+    {
+      "name": "Change Preventers",
+      "description": "Smells that make changing the code expensive — one conceptual change requires many edits.",
+      "smells": [
+        { "name": "Divergent Change", "diagnostic": "ONE class changes for MANY unrelated reasons (billing rules AND reporting format AND email templates).", "fix": "Split the class along the axes of change. Each resulting class changes for one reason." },
+        { "name": "Shotgun Surgery", "diagnostic": "ONE conceptual change (e.g. adding a currency) requires edits in MANY classes. Inverse of Divergent Change.", "fix": "Move Method/Field to consolidate the responsibility. The next change should touch one class." },
+        { "name": "Parallel Inheritance Hierarchies", "diagnostic": "Every time you add a subclass to one hierarchy, you have to add one to another hierarchy.", "fix": "Collapse the two hierarchies or use composition/delegation." }
+      ]
+    },
+    {
+      "name": "Dispensables",
+      "description": "Code that exists but shouldn't — its removal makes the system cleaner.",
+      "smells": [
+        { "name": "Comments", "diagnostic": "A comment explaining WHAT code does (not why). Often the comment was written because the code wasn't readable.", "fix": "Rewrite the code so the comment is redundant. Keep comments only for WHY — constraints, non-obvious context, decisions." },
+        { "name": "Duplicated Code", "diagnostic": "The same expression/block appears in 2+ places. Or the same algorithm in slightly different forms.", "fix": "Extract Function / Pull Up Method. Don't apply DRY blindly — see Rule of Three (Hunt & Thomas)." },
+        { "name": "Lazy Element", "diagnostic": "A class/function that doesn't do enough to justify its existence (one-liner delegating to another).", "fix": "Inline Function / Collapse Hierarchy. Every element should earn its keep." },
+        { "name": "Data Class", "diagnostic": "A class with only fields and getters/setters, no behavior.", "fix": "Move behavior that operates on these fields INTO the class. If it genuinely has no behavior, consider making it a value object / record." },
+        { "name": "Dead Code", "diagnostic": "Code that isn't called by anything live.", "fix": "Delete it. Version control remembers. Dead code wastes attention on every read." },
+        { "name": "Speculative Generality", "diagnostic": "Abstract classes, hooks, or parameters added 'in case we need it later' but never used.", "fix": "Remove the unused flexibility. Add it back when a real requirement arrives." }
+      ]
+    },
+    {
+      "name": "Couplers",
+      "description": "Smells that indicate modules are too aware of each other's internals.",
+      "smells": [
+        { "name": "Feature Envy", "diagnostic": "A method uses another class's data more than its own — walks through get/set calls to do its work.", "fix": "Move Method to the class whose data it uses. Or Extract the envious portion and move just that." },
+        { "name": "Inappropriate Intimacy", "diagnostic": "Two classes know too much about each other's private parts. Changes in one usually require changes in the other.", "fix": "Move Method/Field to consolidate, Extract Class for the shared concept, or invert the dependency direction." },
+        { "name": "Message Chains", "diagnostic": "A caller navigates through a chain of gets: `a.getB().getC().getD().doThing()`. Callers are coupled to the entire navigation structure.", "fix": "Hide Delegate on `a` so callers say `a.doThing()`. Law of Demeter." },
+        { "name": "Middle Man", "diagnostic": "A class that does nothing but delegate to another class. More than half its methods are pure delegation.", "fix": "Remove Middle Man — talk to the delegate directly. Or Inline the middle man if it's a simple wrapper." },
+        { "name": "Insider Trading", "diagnostic": "Modules passing data/methods back and forth through back channels (friend classes, private internals, undocumented conventions).", "fix": "Surface the coupling as an explicit interface, or break it with a Mediator. Hidden coupling is more expensive than visible coupling." }
+      ]
+    },
+    {
+      "name": "Other Fowler Smells",
+      "description": "Standalone diagnostics from Fowler 2nd ed.",
+      "smells": [
+        { "name": "Mysterious Name", "diagnostic": "A variable/function/class name that doesn't say what it does. `processData`, `handleItem`, `doStuff`.", "fix": "Rename with intent. If you can't name it clearly, the thing probably doesn't have a clear job — fix that first." },
+        { "name": "Global Data", "diagnostic": "Shared mutable state that anything can modify from anywhere.", "fix": "Encapsulate behind an accessor; or eliminate by threading state explicitly. Global data is action at a distance." },
+        { "name": "Mutable Data", "diagnostic": "Fields/variables whose values change in non-obvious ways, especially across threads or callbacks.", "fix": "Favor immutability. When mutation is necessary, restrict its scope (Encapsulate Variable, Split Phase)." },
+        { "name": "Loops", "diagnostic": "Explicit loops where a pipeline (map/filter/reduce/forEach) would express intent more clearly.", "fix": "Replace Loop with Pipeline — when the loop is 'transform each, then filter, then sum', pipelines read better." },
+        { "name": "Temporary Field", "diagnostic": "A field that's only set in some circumstances; null/undefined most of the time. Reader has to guess when it's valid.", "fix": "Extract Class for the case where the field IS populated; or use Introduce Null Object for the empty case." }
+      ]
+    },
+    {
+      "name": "Module-Depth Extensions (Ousterhout)",
+      "description": "Not in Fowler's list but equally diagnostic. See docs/DESIGN_TESTS.md §Module-depth.",
+      "smells": [
+        { "name": "Pass-through Method", "diagnostic": "A method that does little except call another method with a similar signature. `Controller.findUser(id) { return service.findUser(id) }`.", "fix": "Delete the pass-through. Let the caller hit the service directly. Or, if the wrapper is adding a concern (auth, logging), name the concern and make the method about THAT." },
+        { "name": "Pass-through Variable", "diagnostic": "A variable threaded through N function/method signatures, used only at the bottom. Every layer in between is coupled to it.", "fix": "Introduce a context object, thread-local, or dependency injection. Or lift the consumer up so the intermediate layers aren't involved." }
+      ]
+    }
+  ]
+}

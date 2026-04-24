@@ -113,6 +113,18 @@ Follow the output format specified in the checklist. Respect the suppressions �
 
 ---
 
+## Step 4.5: Design-quality pass
+
+Step 4 catches bugs that would ship. This pass catches designs that would make the NEXT change expensive. Use the vocabulary below — naming the smell lets the author look up the canonical diagnostic and refactoring direction instead of re-deriving it from prose.
+
+{{CODE_SMELLS_CHECKLIST}}
+
+**Scope discipline:** only flag smells that (a) appear in the diff or (b) are ONE-LINE READS away in files the diff touches. Don't expand into unrelated files. If a smell is pervasive across the codebase but not worse on this PR, note it once as informational, don't block.
+
+**Pair with the contracts vocabulary** (see `docs/DESIGN_TESTS.md`): smells flag the symptom; module-depth, information-hiding, and design-by-contract flag the root cause. A "Long Parameter List" often means the method has a shallow interface hiding a deep obligation — name both.
+
+---
+
 {{REVIEW_ARMY}}
 
 ---

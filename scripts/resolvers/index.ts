@@ -24,6 +24,7 @@ import { generateQuestionPreferenceCheck, generateQuestionLog, generateInlineTun
 import { generateMakePdfSetup } from './make-pdf';
 import { generateThinkingHint } from './thinking-hint';
 import { generateOutputFormat } from './output-format';
+import { generateCodeSmellsChecklist } from './code-smells';
 
 export const RESOLVERS: Record<string, ResolverFn> = {
   SLUG_EVAL: generateSlugEval,
@@ -34,6 +35,7 @@ export const RESOLVERS: Record<string, ResolverFn> = {
   SUBAGENT_HINT: generateSubagentHintResolver,
   THINKING_HINT: generateThinkingHint,
   OUTPUT_FORMAT_HINT: generateOutputFormat,
+  CODE_SMELLS_CHECKLIST: generateCodeSmellsChecklist,
   BROWSE_SETUP: generateBrowseSetup,
   BASE_BRANCH_DETECT: generateBaseBranchDetect,
   QA_METHODOLOGY: generateQAMethodology,
