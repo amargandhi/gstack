@@ -1,23 +1,28 @@
 ---
-name: pair-agent
-version: 0.1.0
+name: glossary
+preamble-tier: 2
+version: 1.0.0
 description: |
-  Pair a remote AI agent with your browser. One command generates a setup key and
-  prints instructions the other agent can follow to connect. Works with OpenClaw,
-  Hermes, Codex, Cursor, or any agent that can make HTTP requests. The remote agent
-  gets its own tab with scoped access (read+write by default, admin on request).
-  Use when asked to "pair agent", "connect agent", "share browser", "remote browser",
-  "let another agent use my browser", or "give browser access". (gstack)
-  Voice triggers (speech-to-text aliases): "pair agent", "connect agent", "share my browser", "remote browser access".
-triggers:
-  - pair with agent
-  - connect remote agent
-  - share my browser
+  Build (or update) an ubiquitous language for the codebase — a glossary of
+  domain terms grouped by bounded context, with a context map showing how
+  those contexts relate. Grounded in Evans, Domain-Driven Design (2003),
+  Ch. 2 (Ubiquitous Language) and Ch. 14 (Maintaining Model Integrity).
+  Use when asked to "build a glossary", "document our domain language",
+  "context map", "bounded contexts", or "why does 'Customer' mean different
+  things in different parts of the codebase". (gstack)
 allowed-tools:
   - Bash
   - Read
+  - Write
+  - Grep
+  - Glob
   - AskUserQuestion
-
+triggers:
+  - build a glossary
+  - ubiquitous language
+  - bounded contexts
+  - context map
+  - domain vocabulary
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
@@ -60,7 +65,7 @@ _QUESTION_TUNING=$(~/.claude/skills/gstack/bin/gstack-config get question_tuning
 echo "QUESTION_TUNING: $_QUESTION_TUNING"
 mkdir -p ~/.gstack/analytics
 if [ "$_TEL" != "off" ]; then
-echo '{"skill":"pair-agent","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
+echo '{"skill":"glossary","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
 # zsh-compatible: use find instead of glob to avoid NOMATCH error
 for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null); do
@@ -129,7 +134,7 @@ if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; 
   echo "HOST_MISMATCH: built for $_BUILD_HOST, running in $_RUNTIME_HOST — regenerate via: bun run gen:skill-docs --host $_RUNTIME_HOST"
 fi
 # Session timeline: record skill start with runtime model (local-only, never sent anywhere)
-~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"pair-agent","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
+~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"glossary","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
 # Dynamic overlay (B1): if runtime model differs from build model and we have an
 # overlay for the runtime model, emit it as a system-reminder so the model gets
 # its own behavioral guidance without requiring a regeneration.
@@ -149,21 +154,21 @@ if [ "$_RUNTIME_MODEL" != "unknown" ] && [ "$_RUNTIME_MODEL" != "$_BUILD_MODEL" 
 fi
 # Model gate — hard STOP if the runtime model is known to be unsuitable for this skill.
 # Only fires for models with explicit rules (currently: gpt-5.3-codex-spark on strategy/high-analysis).
-_GATE=$(~/.claude/skills/gstack/bin/gstack-model-gate "$_RUNTIME_MODEL" "pair-agent" 2>/dev/null || echo "OK")
+_GATE=$(~/.claude/skills/gstack/bin/gstack-model-gate "$_RUNTIME_MODEL" "glossary" 2>/dev/null || echo "OK")
 if [ "${_GATE%%:*}" = "ESCALATE" ]; then
   _SUGGEST="${_GATE#ESCALATE:}"
   _SUGGEST_MODEL="${_SUGGEST%%|*}"
   _SUGGEST_REASON="${_SUGGEST#*|}"
   echo ""
   echo "<system-reminder>"
-  echo "MODEL_GATE: $_RUNTIME_MODEL is not suitable for /pair-agent."
+  echo "MODEL_GATE: $_RUNTIME_MODEL is not suitable for /glossary."
   echo "Reason: $_SUGGEST_REASON"
   echo ""
   echo "STOP. Before continuing this skill, ask the user to either:"
-  echo "  1. Re-run on a capable model: codex -m $_SUGGEST_MODEL /pair-agent"
+  echo "  1. Re-run on a capable model: codex -m $_SUGGEST_MODEL /glossary"
   echo "  2. Or switch the model in their current harness (e.g. /model in Claude Code)"
   echo ""
-  echo "Explain the trade-off briefly so they understand why. Do not proceed with /pair-agent on $_RUNTIME_MODEL."
+  echo "Explain the trade-off briefly so they understand why. Do not proceed with /glossary on $_RUNTIME_MODEL."
   echo "</system-reminder>"
 fi
 # Checkpoint mode (explicit = no auto-commit, continuous = WIP commits as you go)
@@ -751,7 +756,7 @@ Progress summaries must NEVER mutate git state — they are reporting, not commi
 
 **After the user answers.** Log it (non-fatal — best-effort):
 ```bash
-~/.claude/skills/gstack/bin/gstack-question-log '{"skill":"pair-agent","question_id":"<id>","question_summary":"<short>","category":"<approval|clarification|routing|cherry-pick|feedback-loop>","door_type":"<one-way|two-way>","options_count":N,"user_choice":"<key>","recommended":"<key>","session_id":"'"$_SESSION_ID"'"}' 2>/dev/null || true
+~/.claude/skills/gstack/bin/gstack-question-log '{"skill":"glossary","question_id":"<id>","question_summary":"<short>","category":"<approval|clarification|routing|cherry-pick|feedback-loop>","door_type":"<one-way|two-way>","options_count":N,"user_choice":"<key>","recommended":"<key>","session_id":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 ```
 
 **Offer inline tune (two-way only, skip on one-way).** Add one line:
@@ -773,24 +778,6 @@ Write (only after confirmation for free-form):
 
 Exit code 2 = write rejected as not user-originated. Tell the user plainly; do not
 retry. On success, confirm inline: "Set `<id>` → `<preference>`. Active immediately."
-
-## Repo Ownership — See Something, Say Something
-
-`REPO_MODE` controls how to handle issues outside your branch:
-- **`solo`** — You own everything. Investigate and offer to fix proactively.
-- **`collaborative`** / **`unknown`** — Flag via AskUserQuestion, don't fix (may be someone else's).
-
-Always flag anything that looks wrong — one sentence, what you noticed and its impact.
-
-## Search Before Building
-
-Before building anything unfamiliar, **search first.** See `~/.claude/skills/gstack/ETHOS.md`.
-- **Layer 1** (tried and true) — don't reinvent. **Layer 2** (new and popular) — scrutinize. **Layer 3** (first principles) — prize above all.
-
-**Eureka:** When first-principles reasoning contradicts conventional wisdom, name it and log:
-```bash
-jq -n --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg skill "SKILL_NAME" --arg branch "$(git branch --show-current 2>/dev/null)" --arg insight "ONE_LINE_SUMMARY" '{ts:$ts,skill:$skill,branch:$branch,insight:$insight}' >> ~/.gstack/analytics/eureka.jsonl 2>/dev/null || true
-```
 
 ## Completion Status Protocol
 
@@ -898,276 +885,286 @@ If a richer review report already exists, skip — review skills wrote it.
 
 PLAN MODE EXCEPTION — always allowed (it's the plan file).
 
-# /pair-agent — Share Your Browser With Another AI Agent
+# /glossary — Ubiquitous Language & Context Map
 
-You're sitting in Claude Code with a browser running. You also have another AI agent
-open (OpenClaw, Hermes, Codex, Cursor, whatever). You want that other agent to be
-able to browse the web using YOUR browser. This skill makes that happen.
+You are a **Domain-Driven Design consultant** who has spent years helping teams turn accidental, drifting codebases into deliberate, bounded ones. Your first job is never to invent new vocabulary — it's to surface the vocabulary that already exists in the code and make it explicit, consistent, and mappable.
 
-## How it works
+**Why this skill exists:** On any codebase older than a year, the same word means different things in different modules. "Customer" in `billing/` is "the entity we invoice." In `support/` it's "the person we talk to on the phone." In `analytics/` it's "a deduplicated device fingerprint." These drifts are not a problem IF they are named and contained. They are a problem when nobody has written them down — then every cross-module conversation re-negotiates the term from scratch, and refactors split the concept silently.
 
-Your gstack browser runs a local HTTP server. This skill creates a one-time setup key,
-prints a block of instructions, and you paste those instructions into the other agent.
-The other agent exchanges the key for a session token, creates its own tab, and starts
-browsing. Each agent gets its own tab. They can't mess with each other's tabs.
+Evans' answer is **bounded contexts**: a coherent subsystem in which the language is consistent, with explicit relationships (via a **context map**) to other contexts. Your output is one document that makes the contexts and their relationships visible.
 
-The setup key expires in 5 minutes and can only be used once. If it leaks, it's dead
-before anyone can abuse it. The session token lasts 24 hours.
+**HARD GATE:** Do NOT rename anything, refactor anything, or propose architecture changes. This skill produces documentation only. Renames are a separate conversation (the output of this skill will often motivate them).
 
-**Same machine:** If the other agent is on the same machine (like OpenClaw running
-locally), you can skip the copy-paste ceremony and write the credentials directly to
-the agent's config directory.
 
-**Remote:** If the other agent is on a different machine, you need an ngrok tunnel.
-The skill will tell you if one is needed and how to set it up.
 
-## SETUP (run this check BEFORE any browse command)
 
-```bash
-_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-B=""
-[ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/gstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/gstack/browse/dist/browse"
-[ -z "$B" ] && B="$HOME/.claude/skills/gstack/browse/dist/browse"
-if [ -x "$B" ]; then
-  echo "READY: $B"
-else
-  echo "NEEDS_SETUP"
-fi
-```
 
-If `NEEDS_SETUP`:
-1. Tell the user: "gstack browse needs a one-time build (~10 seconds). OK to proceed?" Then STOP and wait.
-2. Run: `cd <SKILL_DIR> && ./setup`
-3. If `bun` is not installed:
+---
+
+## User-invocable
+
+When the user types `/glossary`, run this skill.
+
+## Arguments
+
+- `/glossary` — first-run or update. Re-scans the codebase, presents changes vs the existing `UBIQUITOUS_LANGUAGE.md` (if any), and writes an updated one after approval.
+- `/glossary --scope <path>` — limit to a specific directory (useful for mono-repo subprojects).
+- `/glossary --dry-run` — produce the analysis but don't write the file. User reads output and decides.
+
+---
+
+## Phase 1: Discover domain terms
+
+Surface the nouns, verbs, and roles that already appear in the code. Do NOT invent — only collect what is already there.
+
+1. **Module structure.** List top-level source directories. Each directory name is a first-cut domain area:
    ```bash
-   if ! command -v bun >/dev/null 2>&1; then
-     BUN_VERSION="1.3.10"
-     BUN_INSTALL_SHA="bab8acfb046aac8c72407bdcce903957665d655d7acaa3e11c7c4616beae68dd"
-     tmpfile=$(mktemp)
-     curl -fsSL "https://bun.sh/install" -o "$tmpfile"
-     actual_sha=$(shasum -a 256 "$tmpfile" | awk '{print $1}')
-     if [ "$actual_sha" != "$BUN_INSTALL_SHA" ]; then
-       echo "ERROR: bun install script checksum mismatch" >&2
-       echo "  expected: $BUN_INSTALL_SHA" >&2
-       echo "  got:      $actual_sha" >&2
-       rm "$tmpfile"; exit 1
-     fi
-     BUN_VERSION="$BUN_VERSION" bash "$tmpfile"
-     rm "$tmpfile"
-   fi
+   ls -d */ src/*/ lib/*/ app/*/ 2>/dev/null | grep -Ev '^(node_modules|dist|build|vendor|test|tests|spec|\.)' | head -40
    ```
 
-## Step 1: Check prerequisites
+2. **Class / type / interface names.** Use Grep to find the domain types. Scope to detected languages from the repo (check `package.json`, `requirements.txt`, `Gemfile`, `go.mod` etc. — same stack detection as `/cso` Phase 0).
+   - TypeScript/JavaScript: `interface\s+[A-Z]`, `class\s+[A-Z]`, `type\s+[A-Z]\w*\s*=`
+   - Python: `class\s+[A-Z]`
+   - Ruby: `class\s+[A-Z]`, `module\s+[A-Z]`
+   - Go: `type\s+[A-Z]\w+\s+(struct|interface)`
+   - Java/Kotlin/C#: `(class|interface|record)\s+[A-Z]`
+   Filter out framework base classes (e.g., `React.Component`, `ApplicationController`) and test doubles.
 
-```bash
-$B status 2>/dev/null
+3. **Database tables.** Check migration files, `schema.rb`, `schema.prisma`, `*.sql`, `db/` directory. Table names are often the cleanest domain terms because the DB resists casual renaming.
+
+4. **URL path segments.** Grep routers for top-level paths. `/orders`, `/shipments`, `/returns` are domain nouns. `/api/v2/admin/users/bulk-suspend` is the language of a specific context.
+
+5. **API response field names.** If there's an OpenAPI spec or typed API schema, read it. Response field names travel further than class names — they are public contract.
+
+6. **Terms the team uses in docs/CHANGELOG/README.** Grep the docs for capitalized phrases and acronyms.
+
+**Output a raw candidate list** — deduplicated, roughly 30-120 terms. Do not classify yet. This is raw material for Phase 2.
+
+---
+
+## Phase 2: Cluster into bounded contexts
+
+Now group the terms into coherent subsystems where the language is internally consistent.
+
+**First cut:** directory structure. `src/billing/` is usually a bounded context boundary. `src/shared/` usually is NOT — it's likely a shared kernel OR a big ball of mud. Name this out.
+
+**Second cut:** find **language seams** — terms that appear in multiple directories with different definitions. These are the high-value findings:
+
+1. Grep for the candidate term across all source directories.
+2. Read the class/type definition in each location. Are they the same concept, or different concepts sharing a name?
+3. If different: the split is a bounded context boundary. Document both meanings separately.
+
+**Third cut:** ask the user. For the top 5-10 ambiguous terms, use AskUserQuestion:
+
+```
+The term "Account" appears in both `billing/` (as a payment target — has
+a balance, invoices, payment methods) and `auth/` (as a login entity —
+has credentials, sessions, MFA). Same concept or two concepts sharing a name?
+
+A) Same concept — they should be the same type (renaming one in code)
+B) Two concepts — rename one in the glossary (e.g. BillingAccount / UserAccount)
+   and mark the seam explicitly
+C) I don't know — save this question for the next team review
 ```
 
-If the browse server is not running, start it:
+**Output a context list.** Usually 3-8 contexts for a mature app; 1-3 for early-stage. Name each context by what it does in the business, not by the directory. Example:
 
-```bash
-$B goto about:blank
+```
+Contexts discovered (draft — user to confirm):
+  1. Identity            src/auth/, src/users/
+  2. Billing             src/billing/, src/payments/
+  3. Reporting           src/analytics/, src/dashboards/
+  4. Support             src/tickets/, src/chat/
+  5. Shared Kernel       src/shared/, src/db/, src/lib/ (small — needs justification)
 ```
 
-This ensures the server is up and healthy before pairing.
+---
 
-## Step 2: Ask what they want
+## Phase 3: Map context relationships
 
-Use AskUserQuestion:
+For each pair of contexts that interact (not every pair does — that's information too), classify the relationship using Evans' canonical types. The classification is the hard work; name it explicitly so the team can agree or push back.
 
-> Which agent do you want to pair with your browser? This determines the
-> instructions format and where credentials get written.
+| Relationship | When to use | Signal in code |
+|---|---|---|
+| **Shared Kernel** | Two contexts jointly own a small shared model (types, constants, utility). Joint ownership — changes require buy-in from both teams. | A `shared/` directory imported by both, with types both contexts reference by their core names (not via adapters). |
+| **Customer / Supplier** | Upstream supplies downstream. Downstream is the customer — they can ask for changes but don't dictate. | Import direction is one-way. The downstream has some voice in the upstream's API (issues filed, reviews). |
+| **Conformist** | Downstream adopts upstream's model wholesale. No translation. Fast to build, painful to diverge later. | No adapter layer. Downstream uses upstream types directly throughout its internals. |
+| **Anticorruption Layer (ACL)** | Downstream protects its own model via a translation layer. Best when upstream is legacy or external. | A clearly-named adapter module (e.g. `billing/external/stripe-adapter.ts`) translating upstream types → internal types. |
+| **Open Host Service** | Upstream publishes a stable API many downstreams consume. Upstream prioritizes stability over flexibility. | Versioned API, public docs, deprecation policy. |
+| **Published Language** | Upstream defines a formal shared vocabulary (JSON schema, protobuf, XSD). All consumers speak it. | `schemas/`, `.proto` files, OpenAPI spec with explicit types. |
+| **Separate Ways** | Two contexts do NOT integrate. Each owns its own model. Accept duplication over the cost of coupling. | No imports between the two. Same concept implemented twice, intentionally. |
+| **Partnership** | Two teams jointly succeed or fail. Close coordination. Often a transitional state — either it becomes Shared Kernel or splits. | Cross-team standups on a shared feature. |
+| **Big Ball of Mud (BBoM)** | No structure. Mixing models, leaks everywhere, renames break everything. Flag where this exists. | Hundreds of unplanned imports across directories. |
 
-Options:
-- A) OpenClaw (local or remote)
-- B) Codex / OpenAI Agents (local)
-- C) Cursor (local)
-- D) Another Claude Code session (local or remote)
-- E) Something else (generic HTTP instructions — use this for Hermes)
+**Draw the context map.** Use Mermaid (renders on GitHub/GitLab). Example:
 
-Based on the answer, set `TARGET_HOST`:
-- A → `openclaw`
-- B → `codex`
-- C → `cursor`
-- D → `claude`
-- E → generic (no host-specific config)
-
-## Step 3: Local or remote?
-
-Use AskUserQuestion:
-
-> Is the other agent running on this same machine, or on a different machine/server?
->
-> **Same machine** skips the copy-paste ceremony. Credentials are written directly to
-> the agent's config directory. No tunnel needed.
->
-> **Different machine** generates a setup key and instruction block. If ngrok is
-> installed, the tunnel starts automatically. If not, I'll walk you through setup.
->
-> RECOMMENDATION: Choose A if the agent is local. It's instant, no copy-paste needed.
-
-Options:
-- A) Same machine (write credentials directly)
-- B) Different machine (generate instruction block for copy-paste)
-
-## Step 4: Execute pairing
-
-### If same machine (option A):
-
-Run pair-agent with --local flag:
-
-```bash
-$B pair-agent --local TARGET_HOST
+```mermaid
+graph LR
+  Identity -->|Published Language: user.v1| Billing
+  Identity -->|Published Language: user.v1| Reporting
+  Billing  -->|ACL: StripeAdapter| Stripe[External: Stripe]
+  Support  -.Separate Ways.-> Billing
+  SharedKernel[Shared Kernel: IDs, Money]
+  SharedKernel --- Identity
+  SharedKernel --- Billing
+  SharedKernel --- Reporting
 ```
 
-Replace `TARGET_HOST` with the value from Step 2 (openclaw, codex, cursor, etc.).
+If Mermaid isn't supported in the repo's renderer, emit an ASCII table of pairs + relationship type.
 
-If it succeeds, tell the user:
-"Done. TARGET_HOST can now use your browser. It will read credentials from the
-config file that was written. Try asking it to navigate to a URL."
+---
 
-If it fails (host not found, write permission error), show the error and suggest
-using the generic remote flow instead.
+## Phase 4: Write `UBIQUITOUS_LANGUAGE.md`
 
-### If different machine (option B):
+Choose the path:
+- If `docs/` exists → `docs/UBIQUITOUS_LANGUAGE.md`
+- Else → `UBIQUITOUS_LANGUAGE.md` at repo root
 
-First, detect ngrok status:
+If a file already exists at that path, read it first and produce a **diff summary** (added contexts, renamed terms, changed relationships) before overwriting. Present the diff via AskUserQuestion:
 
-```bash
-which ngrok 2>/dev/null && echo "NGROK_INSTALLED" || echo "NGROK_NOT_INSTALLED"
-ngrok config check 2>/dev/null && echo "NGROK_AUTHED" || echo "NGROK_NOT_AUTHED"
+```
+UBIQUITOUS_LANGUAGE.md already exists.
+Changes detected this run:
+  + 2 new contexts (Notifications, Partnerships)
+  ~ 1 renamed term (Account → BillingAccount in the Billing context)
+  - 1 removed term (LegacyUser — no longer referenced in code)
+
+A) Overwrite with the new version
+B) Show me the full diff first
+C) Write a patch file instead (I'll merge manually)
+D) Cancel — keep the existing file
 ```
 
-**If ngrok is installed and authed:** Just run the command. The CLI will auto-detect
-ngrok, start the tunnel, and print the instruction block with the tunnel URL:
+**File structure:**
 
-```bash
-$B pair-agent --client TARGET_HOST
+```markdown
+# Ubiquitous Language
+
+This glossary is grounded in the code as of <YYYY-MM-DD>. Every term below
+is a noun or verb that appears in the codebase; no term is invented here.
+When you rename a domain concept, update this file in the same PR.
+
+Regenerate with `/glossary`. The regeneration is idempotent — the user
+reviews all changes before the file is overwritten.
+
+## Context Map
+
+<Mermaid or ASCII diagram from Phase 3>
+
+### Relationship table
+
+| Upstream | Downstream | Type | Notes |
+|---|---|---|---|
+| Identity | Billing | Published Language (user.v1) | Stable — no breaking changes in 18mo |
+| Billing | Stripe | ACL (StripeAdapter) | External payment provider |
+| Support | Billing | Separate Ways | Support does not invoice; duplication accepted |
+
+---
+
+## Context: Identity
+
+*Located in:* `src/auth/`, `src/users/`
+*Responsible for:* authentication, authorization, user profile.
+
+| Term | Definition | Where in code |
+|---|---|---|
+| User | A person with credentials. Can log in. | `src/users/User.ts` |
+| Session | A time-bounded authenticated context. | `src/auth/Session.ts` |
+| Role | A bundle of permissions. | `src/auth/Role.ts` |
+
+---
+
+## Context: Billing
+
+*Located in:* `src/billing/`, `src/payments/`
+*Responsible for:* invoicing, payment capture, refunds.
+
+| Term | Definition | Where in code |
+|---|---|---|
+| BillingAccount | A payment target. Has a balance and payment methods. NOTE: different from Identity's "User" — a User can own 0 or many BillingAccounts. | `src/billing/BillingAccount.ts` |
+| Invoice | A dated statement of charges. | `src/billing/Invoice.ts` |
+| PaymentMethod | A stored way to charge (card, ACH, etc). | `src/payments/PaymentMethod.ts` |
+
+---
+
+[... one section per context ...]
+
+---
+
+## Language seams
+
+Terms that mean different things in different contexts. Read these carefully
+before using the term in cross-context conversation.
+
+| Term | Context A | Context B | Why the split |
+|---|---|---|---|
+| Account | Identity: "UserAccount" — login entity | Billing: "BillingAccount" — payment target | A user (person) can own many billing accounts (org, personal). Split during <date/PR>. |
+
+---
+
+## How to update this file
+
+1. When you add a new domain type, add an entry to the appropriate context section.
+2. When you rename a concept, update this file in the SAME PR as the code change.
+3. When you discover a language seam (a term meaning different things in two contexts), add it to §Language seams and rename one of them in code.
+4. Regenerate with `/glossary` quarterly or after any large refactor. The command
+   is idempotent and will show you a diff before overwriting.
 ```
 
-If the user also needs admin access (JS execution, cookies, storage):
+---
 
-```bash
-$B pair-agent --admin --client TARGET_HOST
+## Phase 5: Commit guidance
+
+Do NOT commit the file automatically. Tell the user:
+
+```
+UBIQUITOUS_LANGUAGE.md written to <path>.
+Not committed — review the diff first, then:
+
+  git add <path>
+  git commit -m "docs: add/update ubiquitous language and context map"
+
+If /glossary found language seams (same term, different meanings in different
+contexts), those are the highest-value findings. Consider opening a separate
+issue / PR to rename one of them in code — the file now documents WHERE the
+seams are; fixing them is a behavioral change worth doing separately.
 ```
 
-**CRITICAL: You MUST output the full instruction block to the user.** The command
-prints everything between ═══ lines. Copy the ENTIRE block verbatim into your
-response so the user can copy-paste it into their other agent. Do NOT summarize it,
-do NOT skip it, do NOT just say "here's the output." The user needs to SEE the block
-to copy it. Output it inside a markdown code block so it's easy to select and copy.
+Log the run as a learning with `type: "glossary"` and include the contexts discovered so future runs can diff.
 
-Then tell the user:
-"Copy the block above and paste it into your other agent's chat. The setup key
-expires in 5 minutes."
+## Capture Learnings
 
-**If ngrok is installed but NOT authed:** Walk the user through authentication:
-
-Tell the user:
-"ngrok is installed but not logged in. Let's fix that:
-
-1. Go to https://dashboard.ngrok.com/get-started/your-authtoken
-2. Copy your auth token
-3. Come back here and I'll run the auth command for you."
-
-STOP here and wait for the user to provide their auth token.
-
-When they provide it, run:
-```bash
-ngrok config add-authtoken THEIR_TOKEN
-```
-
-Then retry `$B pair-agent --client TARGET_HOST`.
-
-**If ngrok is NOT installed:** Walk the user through installation:
-
-Tell the user:
-"To connect a remote agent, we need ngrok (a tunnel that exposes your local
-browser to the internet securely).
-
-1. Go to https://ngrok.com and sign up (free tier works)
-2. Install ngrok:
-   - macOS: `brew install ngrok`
-   - Linux: `snap install ngrok` or download from ngrok.com/download
-3. Auth it: `ngrok config add-authtoken YOUR_TOKEN`
-   (get your token from https://dashboard.ngrok.com/get-started/your-authtoken)
-4. Come back here and run `/pair-agent` again."
-
-STOP here. Wait for the user to install ngrok and re-invoke.
-
-## Step 5: Verify connection
-
-After the user pastes the instructions into the other agent, wait a moment then check:
+If you discovered a non-obvious pattern, pitfall, or architectural insight during
+this session, log it for future sessions:
 
 ```bash
-$B status
+~/.claude/skills/gstack/bin/gstack-learnings-log '{"skill":"glossary","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
 ```
 
-Look for the connected agent in the status output. If it appears, tell the user:
-"The remote agent is connected and has its own tab. You'll see its activity in the
-side panel if you have GStack Browser open."
+**Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
+(user stated), `architecture` (structural decision), `tool` (library/framework insight),
+`operational` (project environment/CLI/workflow knowledge).
 
-## What the remote agent can do
+**Sources:** `observed` (you found this in the code), `user-stated` (user told you),
+`inferred` (AI deduction), `cross-model` (both Claude and Codex agree).
 
-With default (read+write) access:
-- Navigate to URLs, click elements, fill forms, take screenshots
-- Read page content (text, HTML, snapshot)
-- Create new tabs (each agent gets its own)
-- Cannot execute arbitrary JavaScript, read cookies, or access storage
+**Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
+An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.
 
-With admin access (--admin flag):
-- Everything above, plus JS execution, cookie access, storage access
-- Use sparingly. Only for agents you fully trust.
+**files:** Include the specific file paths this learning references. This enables
+staleness detection: if those files are later deleted, the learning can be flagged.
 
-## Troubleshooting
+**Only log genuine discoveries.** Don't log obvious things. Don't log things the user
+already knows. A good test: would this insight save time in a future session? If yes, log it.
 
-**"Tab not owned by your agent"** — The remote agent tried to interact with a tab
-it didn't create. Tell it to run `newtab` first to get its own tab.
+---
 
-**"Domain not allowed"** — The token has domain restrictions. Re-pair with broader
-domain access or no domain restrictions.
+## Important Rules
 
-**"Rate limit exceeded"** — The agent is sending > 10 requests/second. It should
-wait for the Retry-After header and slow down.
-
-**"Token expired"** — The 24-hour session expired. Run `/pair-agent` again to
-generate a new setup key.
-
-**Agent can't reach the server** — If remote, check the ngrok tunnel is running
-(`$B status`). If local, check the browse server is running.
-
-## Platform-specific notes
-
-### OpenClaw / AlphaClaw
-
-OpenClaw agents use the `exec` tool instead of `Bash`. The instruction block uses
-`exec curl` syntax which OpenClaw understands natively. When using `--local openclaw`,
-credentials are written to `~/.openclaw/skills/gstack/browse-remote.json`.
+- **Don't invent vocabulary.** Every term in the file must appear in the code. If a term should exist but doesn't, that's a code finding, not a glossary entry.
+- **Name the seams.** The highest-value output of this skill is the "Language seams" section. If you skip it, you've produced a flat glossary — useful but not DDD.
+- **Don't refactor.** This skill is pure documentation. Renames based on glossary findings are a separate conversation.
+- **Accept partial.** First run of `/glossary` on a large codebase will miss terms. That's fine — the file is living; later runs tighten it.
+- **Read the old file before overwriting.** Never silently drop entries; always diff and confirm.
 
 
-### Codex
-
-Codex agents can execute shell commands via `codex exec`. The instruction block's
-curl commands work directly. When using `--local codex`, credentials are written
-to `~/.codex/skills/gstack/browse-remote.json`.
-
-### Cursor
-
-Cursor's AI can run terminal commands. The instruction block works as-is.
-When using `--local cursor`, credentials are written to
-`~/.cursor/skills/gstack/browse-remote.json`.
-
-## Revoking access
-
-To disconnect a specific agent:
-
-```bash
-$B tunnel revoke AGENT_NAME
-```
-
-To disconnect all agents and rotate the root token:
-
-```bash
-# This invalidates ALL scoped tokens immediately
-$B tunnel rotate
-```

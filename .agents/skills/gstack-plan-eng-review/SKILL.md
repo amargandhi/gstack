@@ -361,6 +361,7 @@ Key routing rules:
 - Review what gstack has learned → invoke /learn
 - Tune question sensitivity → invoke /plan-tune
 - Code quality dashboard → invoke /health
+- Build a domain glossary, ubiquitous language, context map, bounded contexts → invoke /glossary
 ```
 
 Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
@@ -1097,6 +1098,66 @@ Evaluate:
 * Technical debt hotspots.
 * Areas that are over-engineered or under-engineered relative to my preferences.
 * Existing ASCII diagrams in touched files — are they still accurate after this change?
+
+**Name the smell when you see one.** The checklist below gives the canonical vocabulary. Use it in findings (e.g. "this plan introduces **Shotgun Surgery** — the currency addition requires edits in Pricing, Invoice, and Report; consolidate into CurrencyContext"). Naming lets the author look up the full diagnostic + refactoring direction; re-deriving vocabulary in prose every time wastes their attention.
+
+## Code Smells Checklist (Fowler 2018 Ch.3 + Ousterhout 2021 Ch.7)
+
+When scanning for code quality, name the smell by its canonical term. Shared vocabulary lets the author look up the full diagnostic and refactoring direction. Don't flag every possible match — focus on ones that meaningfully hurt readability, change-cost, or coupling on this diff.
+
+**Bloaters** — Code/classes/methods that have grown so large they're hard to work with. Usually accrete over time, rarely born this way.
+
+- **Long Function** — A method longer than a screenful — or whose body needs comments to navigate. → Extract Function along the comments/paragraphs. If the method mostly dispatches, consider Replace Conditional with Polymorphism.
+- **Long Parameter List** — More than 3-4 params, or a mix of params the caller has to compute together each time. → Introduce Parameter Object. If some params come from another object, Preserve Whole Object.
+- **Large Class** — A class with many fields/methods that seems to do too much. Probably has multiple responsibilities. → Extract Class along cohesion boundaries — which fields move together with which methods?
+- **Primitive Obsession** — Strings, ints, booleans used where a small domain type would encode the invariants (phone numbers, money, coordinates). → Replace Data Value with Object. Even a tiny wrapper pays for itself on validation.
+- **Data Clumps** — The same 3+ fields appear together in many classes, method signatures, or parameter lists. → Extract Class for the clump. If they travel with behavior, the class will attract methods too.
+
+**Object-Orientation Abusers** — Cases where OO mechanisms are present but misapplied.
+
+- **Repeated Switches** — The same switch/if-else ladder on a type code appears in 3+ places. → Replace Conditional with Polymorphism. Pushes the branches into subclasses or a strategy object.
+- **Refused Bequest** — A subclass inherits fields/methods it doesn't want or that don't apply. → Replace Inheritance with Delegation, or extract a common interface and have both implement it.
+- **Alternative Classes with Different Interfaces** — Two classes do the same job but with different method names/signatures. → Rename to align interfaces, then extract a common supertype. Or keep one and delete the other.
+
+**Change Preventers** — Smells that make changing the code expensive — one conceptual change requires many edits.
+
+- **Divergent Change** — ONE class changes for MANY unrelated reasons (billing rules AND reporting format AND email templates). → Split the class along the axes of change. Each resulting class changes for one reason.
+- **Shotgun Surgery** — ONE conceptual change (e.g. adding a currency) requires edits in MANY classes. Inverse of Divergent Change. → Move Method/Field to consolidate the responsibility. The next change should touch one class.
+- **Parallel Inheritance Hierarchies** — Every time you add a subclass to one hierarchy, you have to add one to another hierarchy. → Collapse the two hierarchies or use composition/delegation.
+
+**Dispensables** — Code that exists but shouldn't — its removal makes the system cleaner.
+
+- **Comments** — A comment explaining WHAT code does (not why). Often the comment was written because the code wasn't readable. → Rewrite the code so the comment is redundant. Keep comments only for WHY — constraints, non-obvious context, decisions.
+- **Duplicated Code** — The same expression/block appears in 2+ places. Or the same algorithm in slightly different forms. → Extract Function / Pull Up Method. Don't apply DRY blindly — see Rule of Three (Hunt & Thomas).
+- **Lazy Element** — A class/function that doesn't do enough to justify its existence (one-liner delegating to another). → Inline Function / Collapse Hierarchy. Every element should earn its keep.
+- **Data Class** — A class with only fields and getters/setters, no behavior. → Move behavior that operates on these fields INTO the class. If it genuinely has no behavior, consider making it a value object / record.
+- **Dead Code** — Code that isn't called by anything live. → Delete it. Version control remembers. Dead code wastes attention on every read.
+- **Speculative Generality** — Abstract classes, hooks, or parameters added 'in case we need it later' but never used. → Remove the unused flexibility. Add it back when a real requirement arrives.
+
+**Couplers** — Smells that indicate modules are too aware of each other's internals.
+
+- **Feature Envy** — A method uses another class's data more than its own — walks through get/set calls to do its work. → Move Method to the class whose data it uses. Or Extract the envious portion and move just that.
+- **Inappropriate Intimacy** — Two classes know too much about each other's private parts. Changes in one usually require changes in the other. → Move Method/Field to consolidate, Extract Class for the shared concept, or invert the dependency direction.
+- **Message Chains** — A caller navigates through a chain of gets: `a.getB().getC().getD().doThing()`. Callers are coupled to the entire navigation structure. → Hide Delegate on `a` so callers say `a.doThing()`. Law of Demeter.
+- **Middle Man** — A class that does nothing but delegate to another class. More than half its methods are pure delegation. → Remove Middle Man — talk to the delegate directly. Or Inline the middle man if it's a simple wrapper.
+- **Insider Trading** — Modules passing data/methods back and forth through back channels (friend classes, private internals, undocumented conventions). → Surface the coupling as an explicit interface, or break it with a Mediator. Hidden coupling is more expensive than visible coupling.
+
+**Other Fowler Smells** — Standalone diagnostics from Fowler 2nd ed.
+
+- **Mysterious Name** — A variable/function/class name that doesn't say what it does. `processData`, `handleItem`, `doStuff`. → Rename with intent. If you can't name it clearly, the thing probably doesn't have a clear job — fix that first.
+- **Global Data** — Shared mutable state that anything can modify from anywhere. → Encapsulate behind an accessor; or eliminate by threading state explicitly. Global data is action at a distance.
+- **Mutable Data** — Fields/variables whose values change in non-obvious ways, especially across threads or callbacks. → Favor immutability. When mutation is necessary, restrict its scope (Encapsulate Variable, Split Phase).
+- **Loops** — Explicit loops where a pipeline (map/filter/reduce/forEach) would express intent more clearly. → Replace Loop with Pipeline — when the loop is 'transform each, then filter, then sum', pipelines read better.
+- **Temporary Field** — A field that's only set in some circumstances; null/undefined most of the time. Reader has to guess when it's valid. → Extract Class for the case where the field IS populated; or use Introduce Null Object for the empty case.
+
+**Module-Depth Extensions (Ousterhout)** — Not in Fowler's list but equally diagnostic. See docs/DESIGN_TESTS.md §Module-depth.
+
+- **Pass-through Method** — A method that does little except call another method with a similar signature. `Controller.findUser(id) { return service.findUser(id) }`. → Delete the pass-through. Let the caller hit the service directly. Or, if the wrapper is adding a concern (auth, logging), name the concern and make the method about THAT.
+- **Pass-through Variable** — A variable threaded through N function/method signatures, used only at the bottom. Every layer in between is coupled to it. → Introduce a context object, thread-local, or dependency injection. Or lift the consumer up so the intermediate layers aren't involved.
+
+**How to cite in a review finding:** "This has **Shotgun Surgery** (Fowler, *Refactoring*, 2018): adding a new currency requires edits in PricingService, Invoice, Report, and EmailFormatter. Consolidate currency handling into one class so the next currency addition touches one file." — name, source, observation, fix direction.
+
+**Scope discipline:** only flag smells that actually appear in the plan (or are one-hop reads away in files the plan edits). Don't expand into unrelated code. Pair with the contracts vocabulary in `docs/DESIGN_TESTS.md` — smells flag symptoms; module-depth and design-by-contract flag root causes.
 
 **STOP.** For each issue found in this section, call AskUserQuestion individually. One issue per call. Present options, state your recommendation, explain WHY. Do NOT batch multiple issues into one AskUserQuestion. Only proceed to the next section after ALL issues in this section are resolved.
 

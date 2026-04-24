@@ -164,6 +164,12 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
     kind: 'execution',
     rationale: 'Post-ship doc reconciliation. Cross-referencing diff against README/ARCHITECTURE.',
   },
+  glossary: {
+    bucket: 'medium',
+    kind: 'analysis',
+    rationale: 'Mapping bounded contexts + naming language seams is synthesis, not mechanical catalog.',
+    downgradeTo: 'low',
+  },
   health: {
     bucket: 'medium',
     kind: 'analysis',
