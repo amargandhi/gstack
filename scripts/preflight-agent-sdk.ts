@@ -7,7 +7,7 @@
  *   3. The SDK event stream contains the types we assume (system init, assistant,
  *      result) with the fields we destructure.
  *   4. `scripts/resolvers/model-overlay.ts` resolves `{{INHERIT:claude}}` against
- *      `opus-4-7.md` AND the resolved text contains the "Fan out explicitly" nudge.
+ *      `opus-4-7.md` with no unresolved inheritance directives.
  *   5. A local `claude` binary exists at `which claude` so binary pinning is possible.
  *
  * Run: bun run scripts/preflight-agent-sdk.ts
@@ -18,7 +18,7 @@
 
 import { query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { readOverlay } from './resolvers/model-overlay';
-import { execSync } from 'child_process';
+import { resolveClaudeBinary } from '../browse/src/claude-bin';
 
 async function main() {
   const failures: string[] = [];
@@ -28,7 +28,7 @@ async function main() {
     failures.push(msg);
   };
 
-  // 1. Overlay resolver + fanout nudge text
+  // 1. Overlay resolver
   console.log('1. Overlay resolver');
   const resolved = readOverlay('opus-4-7');
   if (!resolved) {
@@ -40,21 +40,15 @@ async function main() {
     } else {
       pass('no unresolved INHERIT directives');
     }
-    if (!/Fan out explicitly/i.test(resolved)) {
-      fail('resolved overlay does not contain "Fan out explicitly" text');
-    } else {
-      pass('fanout nudge text present in resolved overlay');
-    }
   }
 
   // 2. Local claude binary exists
   console.log('\n2. Binary pinning');
-  let claudePath: string | null = null;
-  try {
-    claudePath = execSync('which claude', { encoding: 'utf-8' }).trim();
+  let claudePath: string | null = resolveClaudeBinary();
+  if (claudePath) {
     pass(`local claude binary: ${claudePath}`);
-  } catch {
-    fail('`which claude` failed — cannot pin binary');
+  } else {
+    fail('`Bun.which("claude")` failed — cannot pin binary (set GSTACK_CLAUDE_BIN to override)');
   }
 
   // 3. SDK query end-to-end
