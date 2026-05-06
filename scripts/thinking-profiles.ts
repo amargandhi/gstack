@@ -119,6 +119,12 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
     kind: 'analysis',
     rationale: 'Cross-model second opinion. Uses the other model at high/xhigh effort explicitly.',
   },
+  claude: {
+    bucket: 'high',
+    kind: 'analysis',
+    rationale: 'Cross-model outside voice for non-Claude hosts. Quality depends on deliberate review.',
+    downgradeTo: 'medium',
+  },
 
   // ─── Mixed (medium) ─────────────────────────────────────────
   qa: {
@@ -157,7 +163,7 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
   'context-restore': {
     bucket: 'low',
     kind: 'utility',
-    rationale: 'Loading saved state. Mechanical.',
+    rationale: 'Loading saved state from checkpoints is mostly mechanical.',
   },
   'document-release': {
     bucket: 'medium',
@@ -192,6 +198,22 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
     kind: 'execution',
     rationale: 'Performance regression detection. Interpretation of deltas matters.',
   },
+  'benchmark-models': {
+    bucket: 'medium',
+    kind: 'analysis',
+    rationale: 'Cross-model benchmark orchestration. Measurement is mechanical; interpretation needs judgment.',
+    upgradeTo: 'high',
+  },
+  'plan-tune': {
+    bucket: 'medium',
+    kind: 'analysis',
+    rationale: 'Question sensitivity tuning. Needs pattern recognition across prior interactions.',
+  },
+  'landing-report': {
+    bucket: 'low',
+    kind: 'utility',
+    rationale: 'Read-only queue dashboard. Mostly state aggregation and reporting.',
+  },
 
   // ─── Execution-heavy (low) ─────────────────────────────────
   browse: {
@@ -207,7 +229,7 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
   'connect-chrome': {
     bucket: 'minimal',
     kind: 'utility',
-    rationale: 'Connection helper. Mechanical.',
+    rationale: 'Connection helper with deterministic browser setup steps.',
   },
   'setup-browser-cookies': {
     bucket: 'low',
@@ -234,6 +256,32 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
     kind: 'utility',
     rationale: 'Learnings management — list, search, prune. Mechanical.',
   },
+  gstack: {
+    bucket: 'minimal',
+    kind: 'utility',
+    rationale: 'Root command reference and router surface. No reasoning needed.',
+  },
+  scrape: {
+    bucket: 'low',
+    kind: 'execution',
+    rationale: 'Browser data extraction. Prototype once, then run deterministic flows.',
+  },
+  skillify: {
+    bucket: 'medium',
+    kind: 'execution',
+    rationale: 'Turns a working scrape flow into a reusable skill. Requires template judgment.',
+    downgradeTo: 'low',
+  },
+  'setup-gbrain': {
+    bucket: 'low',
+    kind: 'utility',
+    rationale: 'GBrain setup harness. Most work is environment detection and shell commands.',
+  },
+  'sync-gbrain': {
+    bucket: 'low',
+    kind: 'utility',
+    rationale: 'Repository memory sync. Mostly deterministic ingestion and status reporting.',
+  },
 
   // ─── Safety / guardrails (minimal) ─────────────────────────
   careful: {
@@ -249,7 +297,7 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
   unfreeze: {
     bucket: 'minimal',
     kind: 'safety',
-    rationale: 'Removes freeze-dir.txt.',
+    rationale: 'Removes freeze-dir.txt to release edit scope.',
   },
   guard: {
     bucket: 'minimal',

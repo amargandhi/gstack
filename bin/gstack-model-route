@@ -1,0 +1,66 @@
+#!/usr/bin/env bun
+/**
+ * gstack-model-route - compatibility CLI for deterministic per-skill routing.
+ *
+ * Source of truth is scripts/thinking-profiles.ts. This file maps each
+ * semantic profile to the current three Claude model tiers.
+ *
+ * Usage:
+ *   gstack-model-route <skill>
+ *   gstack-model-route <skill> --json
+ */
+
+import { THINKING_PROFILES, getThinkingProfile, type ThinkingProfile } from '../scripts/thinking-profiles';
+
+type Tier = 'router' | 'worker' | 'reasoner';
+
+const TIER_MODEL: Record<Tier, string> = {
+  router: 'claude-haiku-4-5',
+  worker: 'claude-sonnet-4-6',
+  reasoner: 'claude-opus-4-7',
+};
+
+function normalizeSkill(input: string): string {
+  return input.trim().replace(/^\/+/, '').replace(/^gstack-/, '');
+}
+
+const REASONER_SKILLS = new Set(['investigate', 'cso']);
+
+function tierForProfile(skill: string, profile: ThinkingProfile): Tier {
+  if (profile.bucket === 'minimal' || profile.bucket === 'low') return 'router';
+  if (profile.bucket === 'max') return 'reasoner';
+  if (profile.bucket === 'high' && profile.kind === 'strategy') return 'reasoner';
+  if (REASONER_SKILLS.has(skill)) return 'reasoner';
+  return 'worker';
+}
+
+const args = process.argv.slice(2);
+const skill = normalizeSkill(args[0] || '');
+const json = args.includes('--json');
+
+if (!skill || args.includes('--help') || args.includes('-h')) {
+  console.error('Usage: gstack-model-route <skill> [--json]');
+  process.exit(skill ? 0 : 1);
+}
+
+if (!THINKING_PROFILES[skill]) {
+  console.error(`No explicit thinking profile for skill: ${skill}`);
+  process.exit(2);
+}
+
+const profile = getThinkingProfile(skill);
+const tier = tierForProfile(skill, profile);
+const model = TIER_MODEL[tier];
+
+if (json) {
+  console.log(JSON.stringify({
+    skill,
+    tier,
+    model,
+    bucket: profile.bucket,
+    kind: profile.kind,
+    rationale: profile.rationale,
+  }, null, 2));
+} else {
+  console.log(model);
+}
