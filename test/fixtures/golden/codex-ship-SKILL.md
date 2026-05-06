@@ -73,7 +73,9 @@ if [ -f "$_LEARN_FILE" ]; then
 else
   echo "LEARNINGS: 0"
 fi
-$GSTACK_BIN/gstack-timeline-log '{"skill":"ship","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null &
+# Session timeline recorded below, after runtime host/model detection completes,
+# so the entry captures the actual runtime model (A6 measurement foundation).
+# Check if CLAUDE.md has routing rules
 _HAS_ROUTING="no"
 if [ -f CLAUDE.md ] && grep -q "## Skill routing" CLAUDE.md 2>/dev/null; then
   _HAS_ROUTING="yes"
@@ -89,6 +91,70 @@ if [ -d ".agents/skills/gstack" ] && [ ! -L ".agents/skills/gstack" ]; then
 fi
 echo "VENDORED_GSTACK: $_VENDORED"
 echo "MODEL_OVERLAY: claude"
+# Active-fork tracker: which gstack fork currently owns the short skill names
+# (multi-install side-by-side). Written by bin/gstack-switch. Informational only.
+# BUILD_BRAND is set at gen-skill-docs time; RUNTIME_ACTIVE is read live.
+_BUILD_BRAND="gstack"
+_SKILLS_ROOT="${GSTACK_SKILLS_ROOT:-$HOME/.agents/skills}"
+_ACTIVE_FORK=""
+[ -f "$_SKILLS_ROOT/.gstack-active" ] && _ACTIVE_FORK=$(cat "$_SKILLS_ROOT/.gstack-active" 2>/dev/null)
+if [ -z "$_ACTIVE_FORK" ]; then
+  echo "GSTACK_ACTIVE: (none) — short names (/qa, /ship) not routed. Run: ${GSTACK_BIN:-~/.agents/skills/$_BUILD_BRAND/bin}/gstack-switch $_BUILD_BRAND"
+elif [ "$_ACTIVE_FORK" = "$_BUILD_BRAND" ]; then
+  echo "GSTACK_ACTIVE: $_BUILD_BRAND (this fork) — short names /qa, /ship route here"
+else
+  echo "GSTACK_ACTIVE: $_ACTIVE_FORK (different fork) — /qa, /ship go to $_ACTIVE_FORK; use /$_BUILD_BRAND-<skill> to target this fork"
+fi
+# Runtime host + model detection (advisory). Lets skills and downstream scripts
+# know which agent/model is actually running, independent of the build-time host.
+_RUNTIME_HOST=$($GSTACK_BIN/gstack-detect-host 2>/dev/null || echo "unknown")
+_RUNTIME_MODEL=$($GSTACK_BIN/gstack-detect-model 2>/dev/null || echo "unknown")
+echo "RUNTIME_HOST: $_RUNTIME_HOST"
+echo "RUNTIME_MODEL: $_RUNTIME_MODEL"
+# Warn if build-time host doesn't match runtime host (installation/copy mistake).
+_BUILD_HOST="codex"
+if [ "$_RUNTIME_HOST" != "unknown" ] && [ "$_RUNTIME_HOST" != "$_BUILD_HOST" ]; then
+  echo "HOST_MISMATCH: built for $_BUILD_HOST, running in $_RUNTIME_HOST — regenerate via: bun run gen:skill-docs --host $_RUNTIME_HOST"
+fi
+# Session timeline: record skill start with runtime model (local-only, never sent anywhere)
+$GSTACK_BIN/gstack-timeline-log '{"skill":"ship","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'","model":"'"$_RUNTIME_MODEL"'","host":"'"$_RUNTIME_HOST"'"}' 2>/dev/null &
+# Dynamic overlay (B1): if runtime model differs from build model and we have an
+# overlay for the runtime model, emit it as a system-reminder so the model gets
+# its own behavioral guidance without requiring a regeneration.
+_BUILD_MODEL="claude"
+if [ "$_RUNTIME_MODEL" != "unknown" ] && [ "$_RUNTIME_MODEL" != "$_BUILD_MODEL" ]; then
+  _OVERLAY_CONTENT=$($GSTACK_BIN/gstack-overlay-emit "$_RUNTIME_MODEL" 2>/dev/null || echo "")
+  if [ -n "$_OVERLAY_CONTENT" ]; then
+    echo ""
+    echo "<system-reminder>"
+    echo "Runtime model ($_RUNTIME_MODEL) differs from build model ($_BUILD_MODEL)."
+    echo "Applying runtime overlay so behavioral guidance matches your actual model."
+    echo "--- begin $_RUNTIME_MODEL overlay ---"
+    echo "$_OVERLAY_CONTENT"
+    echo "--- end overlay ---"
+    echo "</system-reminder>"
+  fi
+fi
+# Model gate — hard STOP if the runtime model is known to be unsuitable for this skill.
+# Only fires for models with explicit rules (currently: gpt-5.3-codex-spark on strategy/high-analysis).
+_GATE=$($GSTACK_BIN/gstack-model-gate "$_RUNTIME_MODEL" "ship" 2>/dev/null || echo "OK")
+if [ "${_GATE%%:*}" = "ESCALATE" ]; then
+  _SUGGEST="${_GATE#ESCALATE:}"
+  _SUGGEST_MODEL="${_SUGGEST%%|*}"
+  _SUGGEST_REASON="${_SUGGEST#*|}"
+  echo ""
+  echo "<system-reminder>"
+  echo "MODEL_GATE: $_RUNTIME_MODEL is not suitable for /ship."
+  echo "Reason: $_SUGGEST_REASON"
+  echo ""
+  echo "STOP. Before continuing this skill, ask the user to either:"
+  echo "  1. Re-run on a capable model: codex -m $_SUGGEST_MODEL /ship"
+  echo "  2. Or switch the model in their current harness (e.g. /model in Claude Code)"
+  echo ""
+  echo "Explain the trade-off briefly so they understand why. Do not proceed with /ship on $_RUNTIME_MODEL."
+  echo "</system-reminder>"
+fi
+# Checkpoint mode (explicit = no auto-commit, continuous = WIP commits as you go)
 _CHECKPOINT_MODE=$($GSTACK_BIN/gstack-config get checkpoint_mode 2>/dev/null || echo "explicit")
 _CHECKPOINT_PUSH=$($GSTACK_BIN/gstack-config get checkpoint_push 2>/dev/null || echo "false")
 echo "CHECKPOINT_MODE: $_CHECKPOINT_MODE"
@@ -212,18 +278,40 @@ If A: Append this section to the end of CLAUDE.md:
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
 
 Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
+- Product ideas, "is this worth building", brainstorming → invoke /office-hours
+- Strategy, scope, "think bigger", "what should we build" → invoke /plan-ceo-review
+- Architecture, "does this design make sense" → invoke /plan-eng-review
+- Design system, brand, "how should this look" → invoke /design-consultation
+- Design review of a plan → invoke /plan-design-review
+- Developer experience of a plan → invoke /plan-devex-review
+- "Review everything", full review pipeline → invoke /autoplan
+- Bugs, errors, "why is this broken", "wtf", "this doesn't work" → invoke /investigate
+- Test the site, find bugs, "does this work" → invoke /qa (or /qa-only for report only)
+- Code review, check the diff, "look at my changes" → invoke /review
+- Visual polish, design audit, "this looks off" → invoke /design-review
+- Developer experience audit, try onboarding → invoke /devex-review
+- Ship, deploy, create a PR, "send it" → invoke /ship
+- Merge + deploy + verify → invoke /land-and-deploy
+- Configure deployment → invoke /setup-deploy
+- Post-deploy monitoring → invoke /canary
+- Update docs after shipping → invoke /document-release
+- Weekly retro, "how'd we do" → invoke /retro
+- Second opinion, codex review → invoke /codex
+- Safety mode, careful mode, lock it down → invoke /careful or /guard
+- Restrict edits to a directory → invoke /freeze or /unfreeze
+- Upgrade gstack → invoke /gstack-upgrade
+- Save progress, "save my work" → invoke /context-save
+- Resume, restore, "where was I" → invoke /context-restore
+- Security audit, OWASP, "is this secure" → invoke /cso
+- Make a PDF, document, publication → invoke /make-pdf
+- Launch real browser for QA → invoke /open-gstack-browser
+- Import cookies for authenticated testing → invoke /setup-browser-cookies
+- Performance regression, page speed, benchmarks → invoke /benchmark
+- Review what gstack has learned → invoke /learn
+- Tune question sensitivity → invoke /plan-tune
+- Code quality dashboard → invoke /health
+- Build a domain glossary, ubiquitous language, context map, bounded contexts → invoke /glossary
+- Stress-test a plan, "poke holes", "what could go wrong", red-team a design → invoke /challenge
 ```
 
 Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
@@ -328,7 +416,13 @@ Before calling AskUserQuestion, verify:
 
 ```bash
 _GSTACK_HOME="${GSTACK_HOME:-$HOME/.gstack}"
-_BRAIN_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+if [ -n "${GSTACK_HOME:-}" ]; then
+  _BRAIN_REMOTE_FILE="$_GSTACK_HOME/.gstack-brain-remote.txt"
+  _BRAIN_LEGACY_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+else
+  _BRAIN_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+  _BRAIN_LEGACY_REMOTE_FILE=""
+fi
 _BRAIN_SYNC_BIN="$GSTACK_BIN/gstack-brain-sync"
 _BRAIN_CONFIG_BIN="$GSTACK_BIN/gstack-config"
 
@@ -363,8 +457,15 @@ fi
 
 _BRAIN_SYNC_MODE=$("$_BRAIN_CONFIG_BIN" get gbrain_sync_mode 2>/dev/null || echo off)
 
-if [ -f "$_BRAIN_REMOTE_FILE" ] && [ ! -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" = "off" ]; then
-  _BRAIN_NEW_URL=$(head -1 "$_BRAIN_REMOTE_FILE" 2>/dev/null | tr -d '[:space:]')
+_BRAIN_DETECTED_REMOTE_FILE=""
+if [ -f "$_BRAIN_REMOTE_FILE" ]; then
+  _BRAIN_DETECTED_REMOTE_FILE="$_BRAIN_REMOTE_FILE"
+elif [ -n "$_BRAIN_LEGACY_REMOTE_FILE" ] && [ -f "$_BRAIN_LEGACY_REMOTE_FILE" ]; then
+  _BRAIN_DETECTED_REMOTE_FILE="$_BRAIN_LEGACY_REMOTE_FILE"
+fi
+
+if [ -n "$_BRAIN_DETECTED_REMOTE_FILE" ] && [ ! -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" = "off" ]; then
+  _BRAIN_NEW_URL=$(head -1 "$_BRAIN_DETECTED_REMOTE_FILE" 2>/dev/null | tr -d '[:space:]')
   if [ -n "$_BRAIN_NEW_URL" ]; then
     echo "BRAIN_SYNC: brain repo detected: $_BRAIN_NEW_URL"
     echo "BRAIN_SYNC: run 'gstack-brain-restore' to pull your cross-machine memory (or 'gstack-config set gbrain_sync_mode off' to dismiss forever)"
@@ -789,6 +890,8 @@ Only *actions* are idempotent:
 - Step 17: If already pushed, skip the push command
 - Step 19: If PR exists, update the body instead of creating a new PR
 Never skip a verification step because a prior `/ship` run already performed it.
+
+
 
 ---
 
@@ -2308,6 +2411,7 @@ user via AskUserQuestion rather than destroying non-WIP commits.
    - Migrations are their own commit (or grouped with the model they support)
    - Config/route changes can group with the feature they enable
    - If the total diff is small (< 50 lines across < 4 files), a single commit is fine
+   - **Structural vs behavioral axis** (Beck, *Tidy First?*, 2024): a commit is either **structural** (rename, extract, move, dead-code removal, reformat — tests pass identically before and after without modification) or **behavioral** (adds, changes, or removes user-visible behavior — tests change, are added, or start passing). **Never mix both in one commit.** If a diff does both, split: structural commit first ("make the change easy"), then the behavioral one ("then make the easy change"). See `docs/DESIGN_TESTS.md` §Structural-vs-behavioral for why.
 
 4. **Each commit must be independently valid** — no broken imports, no references to code that doesn't exist yet. Order commits so dependencies come first.
 

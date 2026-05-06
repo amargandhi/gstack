@@ -125,6 +125,8 @@ export function generatePreamble(ctx: TemplateContext): string {
   if (tier < 1 || tier > 4) {
     throw new Error(`Invalid preamble-tier: ${tier} in ${ctx.tmplPath}. Must be 1-4.`);
   }
+  const cacheAnchorStart = ctx.host === 'claude' ? '<!-- gstack:cache-anchor:start -->' : '';
+  const cacheAnchorEnd = ctx.host === 'claude' ? '<!-- gstack:cache-anchor:end -->' : '';
   const sections = [
     generatePreambleBash(ctx),
     // Plan-mode-skill semantics at position 1: after bash (so _SESSION_ID /
@@ -142,6 +144,7 @@ export function generatePreamble(ctx: TemplateContext): string {
     generateVendoringDeprecation(ctx),
     generateSpawnedSessionCheck(),
     generateBrainHealthInstruction(ctx),
+    cacheAnchorStart,
     // AskUserQuestion Format renders BEFORE the model overlay so the pacing rule
     // is the ambient default; the overlay's behavioral nudges land as subordinate
     // patches. Opus 4.7 reads top-to-bottom and absorbs the first pacing directive
@@ -161,6 +164,7 @@ export function generatePreamble(ctx: TemplateContext): string {
       generateQuestionTuning(ctx),
     ] : []),
     ...(tier >= 3 ? [generateRepoModeSection(), generateSearchBeforeBuildingSection(ctx)] : []),
+    cacheAnchorEnd,
     generateCompletionStatus(ctx),
   ];
   // Drop empty sections (from host-gated generators that return '') to avoid trailing whitespace gaps.

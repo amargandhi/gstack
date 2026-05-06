@@ -419,7 +419,13 @@ Before calling AskUserQuestion, verify:
 
 ```bash
 _GSTACK_HOME="${GSTACK_HOME:-$HOME/.gstack}"
-_BRAIN_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+if [ -n "${GSTACK_HOME:-}" ]; then
+  _BRAIN_REMOTE_FILE="$_GSTACK_HOME/.gstack-brain-remote.txt"
+  _BRAIN_LEGACY_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+else
+  _BRAIN_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+  _BRAIN_LEGACY_REMOTE_FILE=""
+fi
 _BRAIN_SYNC_BIN="$GSTACK_BIN/gstack-brain-sync"
 _BRAIN_CONFIG_BIN="$GSTACK_BIN/gstack-config"
 
@@ -454,8 +460,15 @@ fi
 
 _BRAIN_SYNC_MODE=$("$_BRAIN_CONFIG_BIN" get gbrain_sync_mode 2>/dev/null || echo off)
 
-if [ -f "$_BRAIN_REMOTE_FILE" ] && [ ! -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" = "off" ]; then
-  _BRAIN_NEW_URL=$(head -1 "$_BRAIN_REMOTE_FILE" 2>/dev/null | tr -d '[:space:]')
+_BRAIN_DETECTED_REMOTE_FILE=""
+if [ -f "$_BRAIN_REMOTE_FILE" ]; then
+  _BRAIN_DETECTED_REMOTE_FILE="$_BRAIN_REMOTE_FILE"
+elif [ -n "$_BRAIN_LEGACY_REMOTE_FILE" ] && [ -f "$_BRAIN_LEGACY_REMOTE_FILE" ]; then
+  _BRAIN_DETECTED_REMOTE_FILE="$_BRAIN_LEGACY_REMOTE_FILE"
+fi
+
+if [ -n "$_BRAIN_DETECTED_REMOTE_FILE" ] && [ ! -d "$_GSTACK_HOME/.git" ] && [ "$_BRAIN_SYNC_MODE" = "off" ]; then
+  _BRAIN_NEW_URL=$(head -1 "$_BRAIN_DETECTED_REMOTE_FILE" 2>/dev/null | tr -d '[:space:]')
   if [ -n "$_BRAIN_NEW_URL" ]; then
     echo "BRAIN_SYNC: brain repo detected: $_BRAIN_NEW_URL"
     echo "BRAIN_SYNC: run 'gstack-brain-restore' to pull your cross-machine memory (or 'gstack-config set gbrain_sync_mode off' to dismiss forever)"
