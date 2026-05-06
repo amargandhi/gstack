@@ -1,0 +1,51 @@
+{"intent":"review this PR before I merge it","expected_skill":"review"}
+{"intent":"check this diff for bugs that tests missed","expected_skill":"review"}
+{"intent":"ship this branch and open the PR","expected_skill":"ship"}
+{"intent":"run the release flow with tests changelog and version bump","expected_skill":"ship"}
+{"intent":"open a real browser and QA the staging login flow, fixing bugs you find","expected_skill":"qa"}
+{"intent":"test this site in the browser and only report findings without editing code","expected_skill":"qa-only"}
+{"intent":"why did this break in production yesterday","expected_skill":"investigate"}
+{"intent":"debug the root cause before changing code","expected_skill":"investigate"}
+{"intent":"do a CEO review of this product plan","expected_skill":"plan-ceo-review"}
+{"intent":"review this architecture plan for data flow and edge cases","expected_skill":"plan-eng-review"}
+{"intent":"rate the visual plan dimensions from a designer perspective","expected_skill":"plan-design-review"}
+{"intent":"review the developer experience plan and time to hello world","expected_skill":"plan-devex-review"}
+{"intent":"start office hours and reframe my startup idea","expected_skill":"office-hours"}
+{"intent":"run CEO design engineering and DX reviews in sequence","expected_skill":"autoplan"}
+{"intent":"stress test this plan with Polya questions","expected_skill":"challenge"}
+{"intent":"build a glossary of bounded contexts and ubiquitous language","expected_skill":"glossary"}
+{"intent":"perform a CSO security audit for OWASP and STRIDE risks","expected_skill":"cso"}
+{"intent":"audit the live site for spacing hierarchy and visual polish","expected_skill":"design-review"}
+{"intent":"generate several design variants for comparison","expected_skill":"design-shotgun"}
+{"intent":"turn the approved mockup into Pretext HTML and CSS","expected_skill":"design-html"}
+{"intent":"create a complete design system for this product","expected_skill":"design-consultation"}
+{"intent":"measure page performance and core web vitals regression","expected_skill":"benchmark"}
+{"intent":"compare Claude GPT and Gemini on the same skill prompt","expected_skill":"benchmark-models"}
+{"intent":"monitor production after deploy for console errors","expected_skill":"canary"}
+{"intent":"merge the PR deploy it and verify production health","expected_skill":"land-and-deploy"}
+{"intent":"show the version queue and currently claimed landing slots","expected_skill":"landing-report"}
+{"intent":"update README changelog and release docs after shipping","expected_skill":"document-release"}
+{"intent":"save current context so another session can resume later","expected_skill":"context-save"}
+{"intent":"restore the saved context checkpoint from the previous session","expected_skill":"context-restore"}
+{"intent":"manage or search project learnings","expected_skill":"learn"}
+{"intent":"run the code health dashboard for lint types tests and dead code","expected_skill":"health"}
+{"intent":"open the visible gstack browser with side panel","expected_skill":"open-gstack-browser"}
+{"intent":"send headless browser commands and click a selector","expected_skill":"browse"}
+{"intent":"import authenticated browser cookies for testing login","expected_skill":"setup-browser-cookies"}
+{"intent":"pair a remote agent with my browser using a setup key","expected_skill":"pair-agent"}
+{"intent":"lock edits to only this directory","expected_skill":"freeze"}
+{"intent":"warn me before destructive git reset or rm commands","expected_skill":"careful"}
+{"intent":"turn on both freeze and destructive command guardrails","expected_skill":"guard"}
+{"intent":"unlock the edit scope again","expected_skill":"unfreeze"}
+{"intent":"upgrade gstack to the latest version","expected_skill":"gstack-upgrade"}
+{"intent":"set up deploy configuration for Fly Render Vercel or Netlify","expected_skill":"setup-deploy"}
+{"intent":"install and initialize gbrain memory for this repo","expected_skill":"setup-gbrain"}
+{"intent":"sync gbrain and refresh agent search guidance","expected_skill":"sync-gbrain"}
+{"intent":"extract data from this page as JSON","expected_skill":"scrape"}
+{"intent":"codify the last successful scrape flow into a permanent skill","expected_skill":"skillify"}
+{"intent":"ask Codex for a second opinion on this diff","expected_skill":"codex"}
+{"intent":"ask Claude as an outside voice from another host","expected_skill":"claude"}
+{"intent":"make a PDF from this markdown file","expected_skill":"make-pdf"}
+{"intent":"what is the weather tomorrow","expected_skill":null}
+{"intent":"convert 42 dollars to euros","expected_skill":null}
+{"intent":"write a haiku about coffee","expected_skill":null}
