@@ -6,6 +6,7 @@ remain, but the claims are backed by deterministic checks.
 ```bash
 git log --oneline | head -15
 bun install
+bun run install:local-hooks
 bun run fork:doctor
 bun run bin/gstack-model-route review
 bun run bin/gstack-model-route freeze
@@ -26,6 +27,8 @@ claude-opus-4-7
 What this proves:
 
 - `fork:doctor` composes the free structural gates.
+- `install:local-hooks` enforces that gate locally before push instead of
+  relying on a fork-specific GitHub Actions workflow.
 - `gstack-model-route` resolves model choice from existing thinking profiles,
   not a fork-only routing file.
 - `BENCHMARKS.md` is honest when no paid benchmark has run.

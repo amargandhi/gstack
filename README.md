@@ -14,6 +14,14 @@ bun run skill:check
 bun run fork:doctor
 ```
 
+This fork does not use a fork-specific GitHub Actions gate for `fork:doctor`.
+Verification is local-first to avoid runner drift and notification noise. To
+enforce the same check before pushes from this machine, run:
+
+```bash
+bun run install:local-hooks
+```
+
 ## Why this fork exists
 
 This fork started as a practical adaptation of GStack while building an
@@ -58,6 +66,16 @@ bun test test/gen-skill-docs.test.ts
 bun test test/audit-compliance.test.ts test/subagent-model-pinning.test.ts
 bun run fork:doctor
 bun run build
+```
+
+`bun run fork:doctor` gates tracked generated `SKILL.md` files for drift.
+External host outputs under ignored directories are install artifacts; their
+reachability is checked structurally from host config.
+
+Local push gate:
+
+```bash
+bun run install:local-hooks
 ```
 
 Benchmark status: pending. `docs/MODEL_BENCHMARKS.md` and `BENCHMARKS.md` do not claim measured benchmark wins without a recorded run.

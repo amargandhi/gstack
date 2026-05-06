@@ -5,7 +5,7 @@
  * Reports:
  *   - Command validation (valid/invalid/snapshot errors)
  *   - Template coverage (which SKILL.md files have .tmpl sources)
- *   - Freshness check (generated files match committed files)
+ *   - Freshness check for tracked Claude generated files
  */
 
 import { validateSkill } from '../test/helpers/skill-parser';
@@ -138,6 +138,10 @@ for (const hostConfig of getExternalHosts()) {
 for (const hostConfig of ALL_HOST_CONFIGS) {
   const hostFlag = hostConfig.name === 'claude' ? '' : ` --host ${hostConfig.name}`;
   console.log(`\n  Freshness (${hostConfig.displayName}):`);
+  if (hostConfig.name !== 'claude') {
+    console.log(`  -  skipped: ${hostConfig.hostSubdir}/ is an ignored install artifact (run: bun run gen:skill-docs${hostFlag})`);
+    continue;
+  }
   try {
     execSync(`bun run scripts/gen-skill-docs.ts${hostFlag} --dry-run`, { cwd: ROOT, stdio: 'pipe' });
     console.log(`  \u2705 All ${hostConfig.displayName} generated files are fresh`);
