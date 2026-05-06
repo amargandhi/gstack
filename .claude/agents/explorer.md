@@ -1,7 +1,7 @@
 ---
 name: explorer
-description: Read unfamiliar code and return a concise map. Use for "where does X live?", "what calls Y?", "summarize the auth flow". Returns 200-500 word summary, not raw file dumps.
-tools: Read, Grep, Glob, Bash
+description: Use when reading unfamiliar code to answer where something lives, what calls it, or how a flow works. Returns a 200-500 word map, not raw file dumps.
+tools: Read, Grep, Glob
 model: haiku
 ---
 <!-- Pinned via scripts/subagent-model-map.ts — haiku-4-5 for cheap recon.

@@ -26,6 +26,12 @@ function readFrontmatter(filePath: string): Record<string, string> {
 }
 
 const VALID_ALIASES: readonly ModelAlias[] = ['haiku', 'sonnet', 'opus'];
+const WRITE_OR_SHELL_TOOLS = new Set(['Bash', 'Edit', 'Write']);
+
+function parseTools(value: string | undefined): string[] {
+  if (!value) return [];
+  return value.split(',').map((tool) => tool.trim()).filter(Boolean);
+}
 
 describe('Subagent model pinning', () => {
   test('every agent file in .claude/agents/ has a mapping entry', () => {
@@ -60,5 +66,23 @@ describe('Subagent model pinning', () => {
       expect(pin.rationale.length).toBeGreaterThan(30);
       expect(pin.explicitVersion).toBeDefined();
     }
+  });
+
+  test('reviewer and verifier agents are read-only', () => {
+    const violations: Array<{ name: string; tool: string }> = [];
+    const agentFiles = fs
+      .readdirSync(AGENTS_DIR)
+      .filter((f) => f.endsWith('.md') && (f.includes('reviewer') || f.includes('verifier')));
+
+    for (const file of agentFiles) {
+      const fm = readFrontmatter(path.join(AGENTS_DIR, file));
+      for (const tool of parseTools(fm.tools)) {
+        if (WRITE_OR_SHELL_TOOLS.has(tool)) {
+          violations.push({ name: fm.name || file, tool });
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
   });
 });
