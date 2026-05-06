@@ -42,9 +42,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_BIN="$SCRIPT_DIR/gstack-config"
 
-GSTACK_HOME="${GSTACK_HOME:-$HOME/.gstack}"
+GSTACK_HOME_ENV="${GSTACK_HOME:-}"
+GSTACK_HOME="${GSTACK_HOME_ENV:-$HOME/.gstack}"
 WORKTREE="${GSTACK_BRAIN_WORKTREE:-$HOME/.gstack-brain-worktree}"
-REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+if [ -n "$GSTACK_HOME_ENV" ]; then
+  REMOTE_FILE="$GSTACK_HOME/.gstack-brain-remote.txt"
+  LEGACY_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+else
+  REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+  LEGACY_REMOTE_FILE=""
+fi
 PLIST_PATH="$HOME/Library/LaunchAgents/com.gstack.brain-sync.plist"
 GBRAIN_CONFIG="$HOME/.gbrain/config.json"
 
@@ -134,6 +141,8 @@ derive_source_id() {
   remote_url=$(git -C "$GSTACK_HOME" remote get-url origin 2>/dev/null) || true
   if [ -z "$remote_url" ] && [ -f "$REMOTE_FILE" ]; then
     remote_url=$(head -1 "$REMOTE_FILE" 2>/dev/null | tr -d '[:space:]')
+  elif [ -z "$remote_url" ] && [ -n "$LEGACY_REMOTE_FILE" ] && [ -f "$LEGACY_REMOTE_FILE" ]; then
+    remote_url=$(head -1 "$LEGACY_REMOTE_FILE" 2>/dev/null | tr -d '[:space:]')
   fi
   [ -z "$remote_url" ] && return 3
   basename "$remote_url" .git \

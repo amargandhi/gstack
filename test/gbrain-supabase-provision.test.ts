@@ -13,10 +13,13 @@
  * generated DB_PASS (not the API response's templated connection_string).
  */
 
-import { describe, test, expect, afterEach } from 'bun:test';
+import { describe as baseDescribe, test, expect, afterEach } from 'bun:test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { isCodexNetworkSandbox, serveOnFreePort } from './helpers/test-ports';
+
+const describe = isCodexNetworkSandbox() ? baseDescribe.skip : baseDescribe;
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const BIN = path.join(ROOT, 'bin', 'gstack-gbrain-supabase-provision');
@@ -34,7 +37,7 @@ interface MockServer {
 
 function startMock(routes: Record<string, Handler>): MockServer {
   const requests: MockServer['requests'] = [];
-  const server = Bun.serve({
+  const server = serveOnFreePort({
     port: 0,
     async fetch(req) {
       const u = new URL(req.url);

@@ -73,7 +73,7 @@ if ! $VALIDATE_ONLY; then
   # GitHub reachability — fail fast if offline rather than hanging `git clone`.
   # --max-time 10, --head (no body), quiet. Status code 200-4xx means we reached
   # the server (even 404 is reachability proof).
-  if ! curl -s --head --max-time 10 https://github.com >/dev/null 2>&1; then
+  if ! $DRY_RUN && ! curl -s --head --max-time 10 https://github.com >/dev/null 2>&1; then
     fail "cannot reach https://github.com. Check your network and try again."
   fi
 fi

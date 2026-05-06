@@ -4,7 +4,7 @@
  * sidebar-agent bun process. No ML, no network, no subprocess spawning.
  */
 
-import { describe, test, expect } from 'bun:test';
+import { afterAll, beforeAll, describe, test, expect } from 'bun:test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -22,6 +22,19 @@ import {
   extractDomain,
   type LayerSignal,
 } from '../src/security';
+
+const ORIGINAL_GSTACK_HOME = process.env.GSTACK_HOME;
+const TEST_GSTACK_HOME = fs.mkdtempSync(path.join(os.tmpdir(), `gstack-security-test-${process.pid}-`));
+
+beforeAll(() => {
+  process.env.GSTACK_HOME = TEST_GSTACK_HOME;
+});
+
+afterAll(() => {
+  if (ORIGINAL_GSTACK_HOME === undefined) delete process.env.GSTACK_HOME;
+  else process.env.GSTACK_HOME = ORIGINAL_GSTACK_HOME;
+  fs.rmSync(TEST_GSTACK_HOME, { recursive: true, force: true });
+});
 
 // ─── Threshold constants ─────────────────────────────────────
 
@@ -268,7 +281,7 @@ describe('logAttempt', () => {
     });
     expect(ok).toBe(true);
 
-    const logPath = path.join(os.homedir(), '.gstack', 'security', 'attempts.jsonl');
+    const logPath = path.join(TEST_GSTACK_HOME, 'security', 'attempts.jsonl');
     const content = fs.readFileSync(logPath, 'utf8');
     const lines = content.split('\n').filter(Boolean);
     const last = JSON.parse(lines[lines.length - 1]);

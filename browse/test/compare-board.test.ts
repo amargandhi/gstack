@@ -10,7 +10,7 @@
  * No LLM involved — this is a deterministic functional test.
  */
 
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
+import { describe as baseDescribe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { BrowserManager } from '../src/browser-manager';
 import { handleReadCommand as _handleReadCommand } from '../src/read-commands';
 import { handleWriteCommand as _handleWriteCommand } from '../src/write-commands';
@@ -22,6 +22,9 @@ const handleWriteCommand = (cmd: string, args: string[], b: BrowserManager) =>
 import { generateCompareHtml } from '../../design/src/compare';
 import * as fs from 'fs';
 import * as path from 'path';
+import { isCodexNetworkSandbox, serveOnFreePort } from '../../test/helpers/test-ports';
+
+const describe = isCodexNetworkSandbox() ? baseDescribe.skip : baseDescribe;
 
 let bm: BrowserManager;
 let boardUrl: string;
@@ -39,6 +42,7 @@ function createTestPng(filePath: string): void {
 }
 
 beforeAll(async () => {
+  if (isCodexNetworkSandbox()) return;
   // Create test PNG files
   tmpDir = '/tmp/compare-board-test-' + Date.now();
   fs.mkdirSync(tmpDir, { recursive: true });
@@ -55,7 +59,7 @@ beforeAll(async () => {
   ]);
 
   // Serve the board via HTTP (browse blocks file:// URLs for security)
-  server = Bun.serve({
+  server = serveOnFreePort({
     port: 0,
     fetch() {
       return new Response(html, { headers: { 'Content-Type': 'text/html' } });

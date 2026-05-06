@@ -3,6 +3,9 @@ import { resolveConfig, ensureStateDir, readVersionHash, getGitRoot, getRemoteSl
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { isCodexNetworkSandbox } from '../../test/helpers/test-ports';
+
+const bindTest = isCodexNetworkSandbox() ? test.skip : test;
 
 describe('config', () => {
   describe('getGitRoot', () => {
@@ -253,7 +256,7 @@ describe('isServerHealthy', () => {
   const { isServerHealthy } = require('../src/cli');
   const http = require('http');
 
-  test('returns true for a healthy server', async () => {
+  bindTest('returns true for a healthy server', async () => {
     const server = http.createServer((_req: any, res: any) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'healthy' }));
@@ -267,7 +270,7 @@ describe('isServerHealthy', () => {
     }
   });
 
-  test('returns false for an unhealthy server', async () => {
+  bindTest('returns false for an unhealthy server', async () => {
     const server = http.createServer((_req: any, res: any) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'unhealthy' }));
@@ -286,7 +289,7 @@ describe('isServerHealthy', () => {
     expect(await isServerHealthy(59999)).toBe(false);
   });
 
-  test('returns false on non-200 response', async () => {
+  bindTest('returns false on non-200 response', async () => {
     const server = http.createServer((_req: any, res: any) => {
       res.writeHead(500);
       res.end('Internal Server Error');

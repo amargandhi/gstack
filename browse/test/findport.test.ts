@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import * as net from 'net';
 import * as path from 'path';
+import { isCodexNetworkSandbox } from '../../test/helpers/test-ports';
 
 const polyfillPath = path.resolve(import.meta.dir, '../src/bun-polyfill.cjs');
 
@@ -27,9 +28,11 @@ function getFreePort(): Promise<number> {
   });
 }
 
+const bindTest = isCodexNetworkSandbox() ? test.skip : test;
+
 describe('findPort / isPortAvailable', () => {
 
-  test('isPortAvailable returns true for a free port', async () => {
+  bindTest('isPortAvailable returns true for a free port', async () => {
     // Use the same isPortAvailable logic from server.ts
     const port = await getFreePort();
 
@@ -44,7 +47,7 @@ describe('findPort / isPortAvailable', () => {
     expect(available).toBe(true);
   });
 
-  test('isPortAvailable returns false for an occupied port', async () => {
+  bindTest('isPortAvailable returns false for an occupied port', async () => {
     const port = await getFreePort();
     const release = await occupyPort(port);
 
@@ -63,7 +66,7 @@ describe('findPort / isPortAvailable', () => {
     }
   });
 
-  test('port is actually free after isPortAvailable returns true', async () => {
+  bindTest('port is actually free after isPortAvailable returns true', async () => {
     // This is the core race condition test: after isPortAvailable says
     // a port is free, can we IMMEDIATELY bind to it?
     const port = await getFreePort();
@@ -126,7 +129,7 @@ describe('findPort / isPortAvailable', () => {
     expect(output).toBe('FIRE_AND_FORGET');
   });
 
-  test('net.createServer approach does not have the race condition', async () => {
+  bindTest('net.createServer approach does not have the race condition', async () => {
     // Prove the fix: net.createServer with proper async bind/close
     // releases the port cleanly
     const result = Bun.spawnSync(['node', '-e', `
@@ -169,7 +172,7 @@ describe('findPort / isPortAvailable', () => {
     expect(output).toBe('FIX_WORKS');
   });
 
-  test('isPortAvailable handles rapid sequential checks', async () => {
+  bindTest('isPortAvailable handles rapid sequential checks', async () => {
     // Stress test: check the same port multiple times in sequence
     const port = await getFreePort();
     const results: boolean[] = [];

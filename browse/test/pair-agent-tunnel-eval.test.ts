@@ -24,6 +24,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { isCodexNetworkSandbox } from '../../test/helpers/test-ports';
 
 const ROOT = path.resolve(import.meta.dir, '../..');
 const SERVER_ENTRY = path.join(ROOT, 'browse/src/server.ts');
@@ -138,7 +139,9 @@ async function postCommand(baseUrl: string, token: string, body: any): Promise<{
   return { status: resp.status, bodyText: await resp.text() };
 }
 
-describe('pair-agent over tunnel surface — gate fires on the right surface only', () => {
+const describeTunnel = isCodexNetworkSandbox() ? describe.skip : describe;
+
+describeTunnel('pair-agent over tunnel surface — gate fires on the right surface only', () => {
   let daemon: DaemonHandle;
 
   beforeAll(async () => {

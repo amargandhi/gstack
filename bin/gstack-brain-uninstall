@@ -39,10 +39,17 @@
 
 set -euo pipefail
 
-GSTACK_HOME="${GSTACK_HOME:-$HOME/.gstack}"
+GSTACK_HOME_ENV="${GSTACK_HOME:-}"
+GSTACK_HOME="${GSTACK_HOME_ENV:-$HOME/.gstack}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_BIN="$SCRIPT_DIR/gstack-config"
-REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+if [ -n "$GSTACK_HOME_ENV" ]; then
+  REMOTE_FILE="$GSTACK_HOME/.gstack-brain-remote.txt"
+  LEGACY_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+else
+  REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+  LEGACY_REMOTE_FILE=""
+fi
 
 ASSUME_YES=0
 DELETE_REMOTE=0
@@ -139,6 +146,9 @@ rm -f "$GSTACK_HOME/consumers.json" 2>/dev/null || true
 # ---- leave remote-helper file alone unless user asked to delete remote ----
 if [ "$DELETE_REMOTE" = "1" ]; then
   rm -f "$REMOTE_FILE" 2>/dev/null || true
+  if [ -n "$LEGACY_REMOTE_FILE" ]; then
+    rm -f "$LEGACY_REMOTE_FILE" 2>/dev/null || true
+  fi
 else
   if [ -f "$REMOTE_FILE" ]; then
     echo "(keeping $REMOTE_FILE — remove manually if you want to forget the URL)"

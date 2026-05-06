@@ -238,9 +238,6 @@ function runCodeImport(args: CliArgs): StageResult {
   if (!root) {
     return { name: "code", ran: false, ok: true, duration_ms: 0, summary: "skipped (not in git repo)" };
   }
-  if (!gbrainAvailable()) {
-    return { name: "code", ran: false, ok: false, duration_ms: 0, summary: "skipped (gbrain CLI not in PATH)" };
-  }
 
   const sourceId = deriveCodeSourceId(root);
 
@@ -253,6 +250,10 @@ function runCodeImport(args: CliArgs): StageResult {
       summary: `would: gbrain sources add ${sourceId} --path ${root} --federated; gbrain sync --strategy code --source ${sourceId}`,
       detail: { source_id: sourceId, source_path: root, status: "skipped" },
     };
+  }
+
+  if (!gbrainAvailable()) {
+    return { name: "code", ran: false, ok: false, duration_ms: 0, summary: "skipped (gbrain CLI not in PATH)" };
   }
 
   // Step 1: Ensure source registered (idempotent).

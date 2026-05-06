@@ -6,9 +6,12 @@
  * the sidebar prompt arrow, feature cards, and branding are present.
  */
 
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
+import { describe as baseDescribe, test, expect, beforeAll, afterAll } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { isCodexNetworkSandbox, serveOnFreePort } from '../../test/helpers/test-ports';
+
+const describe = isCodexNetworkSandbox() ? baseDescribe.skip : baseDescribe;
 
 const WELCOME_PATH = path.join(import.meta.dir, '../src/welcome.html');
 const welcomeHtml = fs.readFileSync(WELCOME_PATH, 'utf-8');
@@ -17,8 +20,9 @@ let server: ReturnType<typeof Bun.serve>;
 let baseUrl: string;
 
 beforeAll(() => {
+  if (isCodexNetworkSandbox()) return;
   // Serve the welcome page exactly as the browse server does
-  server = Bun.serve({
+  server = serveOnFreePort({
     port: 0,
     hostname: '127.0.0.1',
     fetch() {

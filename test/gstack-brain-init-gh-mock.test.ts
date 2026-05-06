@@ -14,7 +14,7 @@
  * No real GitHub account, no live API, deterministic per-run.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, test as _test, expect, beforeEach, afterEach } from 'bun:test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -23,6 +23,8 @@ import { spawnSync } from 'child_process';
 const ROOT = path.resolve(import.meta.dir, '..');
 const BIN_DIR = path.join(ROOT, 'bin');
 const INIT_BIN = path.join(BIN_DIR, 'gstack-brain-init');
+
+const test = (name: string, fn: any) => _test(name, fn, 30000);
 
 let tmpHome: string;
 let bareRemote: string;

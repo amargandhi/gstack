@@ -68,8 +68,14 @@ interface DedupIndex {
   hashes: Record<string, string>; // hash → first-seen runId
 }
 
+function getHarvestRoot(): string {
+  if (process.env.GSTACK_HARVEST_DIR) return process.env.GSTACK_HARVEST_DIR;
+  if (process.env.GSTACK_HOME) return path.join(process.env.GSTACK_HOME, 'harvests');
+  return path.join(os.homedir(), '.gstack-dev', 'harvests');
+}
+
 function getDedupPath(): string {
-  return path.join(os.homedir(), '.gstack-dev', 'harvests', 'dedup.json');
+  return path.join(getHarvestRoot(), 'dedup.json');
 }
 
 function loadDedupIndex(): DedupIndex {
@@ -184,7 +190,7 @@ export class WorktreeManager {
 
       if (!isDuplicate) {
         // Save patch
-        const harvestDir = path.join(os.homedir(), '.gstack-dev', 'harvests', this.runId);
+        const harvestDir = path.join(getHarvestRoot(), this.runId);
         fs.mkdirSync(harvestDir, { recursive: true });
         patchPath = path.join(harvestDir, `${testName}.patch`);
         fs.writeFileSync(patchPath, patch);

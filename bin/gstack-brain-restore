@@ -27,15 +27,24 @@
 
 set -euo pipefail
 
-GSTACK_HOME="${GSTACK_HOME:-$HOME/.gstack}"
+GSTACK_HOME_ENV="${GSTACK_HOME:-}"
+GSTACK_HOME="${GSTACK_HOME_ENV:-$HOME/.gstack}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_BIN="$SCRIPT_DIR/gstack-config"
-REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+if [ -n "$GSTACK_HOME_ENV" ]; then
+  REMOTE_FILE="$GSTACK_HOME/.gstack-brain-remote.txt"
+  LEGACY_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+else
+  REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
+  LEGACY_REMOTE_FILE=""
+fi
 
 REMOTE_URL="${1:-}"
 if [ -z "$REMOTE_URL" ]; then
   if [ -f "$REMOTE_FILE" ]; then
     REMOTE_URL=$(head -1 "$REMOTE_FILE" | tr -d '[:space:]')
+  elif [ -n "$LEGACY_REMOTE_FILE" ] && [ -f "$LEGACY_REMOTE_FILE" ]; then
+    REMOTE_URL=$(head -1 "$LEGACY_REMOTE_FILE" | tr -d '[:space:]')
   fi
 fi
 

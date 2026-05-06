@@ -5,7 +5,7 @@
  * Each test creates real git worktrees in a temporary repo.
  */
 
-import { describe, test, expect, afterEach } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { WorktreeManager } from '../lib/worktree';
 import type { HarvestResult } from '../lib/worktree';
 import { spawnSync } from 'child_process';
@@ -47,16 +47,26 @@ function cleanupRepo(dir: string): void {
 // Track repos to clean up
 const repos: string[] = [];
 
-// Dedup index path — clear before each test to avoid cross-run contamination
-const DEDUP_PATH = path.join(os.homedir(), '.gstack-dev', 'harvests', 'dedup.json');
+let oldHarvestDir: string | undefined;
+let testHarvestRoot: string | null = null;
+
+beforeEach(() => {
+  oldHarvestDir = process.env.GSTACK_HARVEST_DIR;
+  testHarvestRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'worktree-harvests-'));
+  process.env.GSTACK_HARVEST_DIR = testHarvestRoot;
+});
 
 afterEach(() => {
   for (const repo of repos) {
     try { cleanupRepo(repo); } catch { /* best effort */ }
   }
   repos.length = 0;
-  // Clear dedup index so tests are independent
-  try { fs.unlinkSync(DEDUP_PATH); } catch { /* may not exist */ }
+  if (testHarvestRoot) {
+    fs.rmSync(testHarvestRoot, { recursive: true, force: true });
+    testHarvestRoot = null;
+  }
+  if (oldHarvestDir === undefined) delete process.env.GSTACK_HARVEST_DIR;
+  else process.env.GSTACK_HARVEST_DIR = oldHarvestDir;
 });
 
 describe('WorktreeManager', () => {

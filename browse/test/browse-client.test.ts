@@ -6,11 +6,14 @@
  * handling.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe as baseDescribe, it, expect, beforeEach, afterEach } from 'bun:test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { BrowseClient, BrowseClientError, resolveBrowseAuth } from '../src/browse-client';
+import { isCodexNetworkSandbox, serveOnFreePort } from '../../test/helpers/test-ports';
+
+const describe = isCodexNetworkSandbox() ? baseDescribe.skip : baseDescribe;
 
 interface CapturedRequest {
   method: string;
@@ -31,8 +34,8 @@ async function startMockServer(): Promise<MockServer> {
   const requests: CapturedRequest[] = [];
   let response: { status: number; body: string } = { status: 200, body: 'OK' };
 
-  const server = Bun.serve({
-    port: 0, // random port
+  const server = serveOnFreePort({
+    port: 0,
     async fetch(req) {
       const body = await req.text();
       let parsed: any = body;

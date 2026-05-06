@@ -5,7 +5,7 @@
  * A real browse server is started and commands are sent via the CLI HTTP interface.
  */
 
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
+import { describe as baseDescribe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { startTestServer } from './test-server';
 import { BrowserManager } from '../src/browser-manager';
 import { resolveServerScript } from '../src/cli';
@@ -16,6 +16,9 @@ import { consoleBuffer, networkBuffer, dialogBuffer, addConsoleEntry, addNetwork
 import * as fs from 'fs';
 import { spawn } from 'child_process';
 import * as path from 'path';
+import { isCodexNetworkSandbox } from '../../test/helpers/test-ports';
+
+const describe = isCodexNetworkSandbox() ? baseDescribe.skip : baseDescribe;
 
 // Thin wrappers that bridge old test calls (bm as 3rd arg) to new signatures (session + bm)
 const handleReadCommand = (cmd: string, args: string[], b: BrowserManager) =>
@@ -28,6 +31,7 @@ let bm: BrowserManager;
 let baseUrl: string;
 
 beforeAll(async () => {
+  if (isCodexNetworkSandbox()) return;
   testServer = startTestServer(0);
   baseUrl = testServer.url;
 
@@ -36,6 +40,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  if (isCodexNetworkSandbox()) return;
   // Force kill browser instead of graceful close (avoids hang)
   try { testServer.server.stop(); } catch {}
   // bm.close() can hang — just let process exit handle it

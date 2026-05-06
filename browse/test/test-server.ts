@@ -5,11 +5,12 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { serveOnFreePort } from '../../test/helpers/test-ports';
 
 const FIXTURES_DIR = path.resolve(import.meta.dir, 'fixtures');
 
 export function startTestServer(port: number = 0): { server: ReturnType<typeof Bun.serve>; url: string } {
-  const server = Bun.serve({
+  const server = serveOnFreePort({
     port,
     hostname: '127.0.0.1',
     fetch(req) {

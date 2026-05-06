@@ -320,9 +320,26 @@ export interface AttemptRecord {
   gstackVersion?: string;
 }
 
-const SECURITY_DIR = path.join(os.homedir(), '.gstack', 'security');
-const ATTEMPTS_LOG = path.join(SECURITY_DIR, 'attempts.jsonl');
-const SALT_FILE = path.join(SECURITY_DIR, 'device-salt');
+function getSecurityDir(): string {
+  return path.join(process.env.GSTACK_HOME || path.join(os.homedir(), '.gstack'), 'security');
+}
+
+function getAttemptsLog(): string {
+  return path.join(getSecurityDir(), 'attempts.jsonl');
+}
+
+function getSaltFile(): string {
+  return path.join(getSecurityDir(), 'device-salt');
+}
+
+function getStateFile(): string {
+  return path.join(getSecurityDir(), 'session-state.json');
+}
+
+function getDecisionsDir(): string {
+  return path.join(getSecurityDir(), 'decisions');
+}
+
 const MAX_LOG_BYTES = 10 * 1024 * 1024; // 10MB rotate threshold (eng review 4.1)
 const MAX_LOG_GENERATIONS = 5;
 
@@ -335,20 +352,21 @@ let cachedSalt: string | null = null;
 
 function getDeviceSalt(): string {
   if (cachedSalt) return cachedSalt;
+  const saltFile = getSaltFile();
   try {
-    if (fs.existsSync(SALT_FILE)) {
-      cachedSalt = fs.readFileSync(SALT_FILE, 'utf8').trim();
+    if (fs.existsSync(saltFile)) {
+      cachedSalt = fs.readFileSync(saltFile, 'utf8').trim();
       return cachedSalt;
     }
   } catch {
     // fall through to generate
   }
   try {
-    fs.mkdirSync(SECURITY_DIR, { recursive: true, mode: 0o700 });
+    fs.mkdirSync(getSecurityDir(), { recursive: true, mode: 0o700 });
   } catch {}
   cachedSalt = randomBytes(16).toString('hex');
   try {
-    fs.writeFileSync(SALT_FILE, cachedSalt, { mode: 0o600 });
+    fs.writeFileSync(saltFile, cachedSalt, { mode: 0o600 });
   } catch {
     // Can't persist (read-only fs, disk full). Keep the in-memory salt
     // for this process so cross-log correlation still works within a
@@ -367,22 +385,23 @@ export function hashPayload(payload: string): string {
  * Rotate attempts.jsonl when it exceeds 10MB. Keeps 5 generations.
  */
 function rotateIfNeeded(): void {
+  const attemptsLog = getAttemptsLog();
   try {
-    const st = fs.statSync(ATTEMPTS_LOG);
+    const st = fs.statSync(attemptsLog);
     if (st.size < MAX_LOG_BYTES) return;
   } catch {
     return; // doesn't exist, nothing to rotate
   }
   // Shift .N -> .N+1, drop oldest
   for (let i = MAX_LOG_GENERATIONS - 1; i >= 1; i--) {
-    const src = `${ATTEMPTS_LOG}.${i}`;
-    const dst = `${ATTEMPTS_LOG}.${i + 1}`;
+    const src = `${attemptsLog}.${i}`;
+    const dst = `${attemptsLog}.${i + 1}`;
     try {
       if (fs.existsSync(src)) fs.renameSync(src, dst);
     } catch {}
   }
   try {
-    fs.renameSync(ATTEMPTS_LOG, `${ATTEMPTS_LOG}.1`);
+    fs.renameSync(attemptsLog, `${attemptsLog}.1`);
   } catch {}
 }
 
@@ -456,10 +475,10 @@ export function logAttempt(record: AttemptRecord): boolean {
   // the event reported (it goes to a different directory anyway).
   reportAttemptTelemetry(record);
   try {
-    fs.mkdirSync(SECURITY_DIR, { recursive: true, mode: 0o700 });
+    fs.mkdirSync(getSecurityDir(), { recursive: true, mode: 0o700 });
     rotateIfNeeded();
     const line = JSON.stringify(record) + '\n';
-    fs.appendFileSync(ATTEMPTS_LOG, line, { mode: 0o600 });
+    fs.appendFileSync(getAttemptsLog(), line, { mode: 0o600 });
     return true;
   } catch (err) {
     // Non-fatal. Log to stderr for debugging but don't block.
@@ -469,8 +488,6 @@ export function logAttempt(record: AttemptRecord): boolean {
 }
 
 // ─── Cross-process session state ─────────────────────────────
-
-const STATE_FILE = path.join(SECURITY_DIR, 'session-state.json');
 
 export interface SessionState {
   sessionId: string;
@@ -489,10 +506,11 @@ export interface SessionState {
  */
 export function writeSessionState(state: SessionState): void {
   try {
-    fs.mkdirSync(SECURITY_DIR, { recursive: true, mode: 0o700 });
-    const tmp = `${STATE_FILE}.tmp.${process.pid}`;
+    fs.mkdirSync(getSecurityDir(), { recursive: true, mode: 0o700 });
+    const stateFile = getStateFile();
+    const tmp = `${stateFile}.tmp.${process.pid}`;
     fs.writeFileSync(tmp, JSON.stringify(state, null, 2), { mode: 0o600 });
-    fs.renameSync(tmp, STATE_FILE);
+    fs.renameSync(tmp, stateFile);
   } catch (err) {
     console.error('[security] writeSessionState failed:', (err as Error).message);
   }
@@ -500,8 +518,9 @@ export function writeSessionState(state: SessionState): void {
 
 export function readSessionState(): SessionState | null {
   try {
-    if (!fs.existsSync(STATE_FILE)) return null;
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    const stateFile = getStateFile();
+    if (!fs.existsSync(stateFile)) return null;
+    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));
   } catch {
     return null;
   }
@@ -515,12 +534,10 @@ export function readSessionState(): SessionState | null {
 // for it. File-based on purpose: sidebar-agent.ts is a separate subprocess
 // and this is the same pattern the existing per-tab cancel file uses.
 
-const DECISIONS_DIR = path.join(SECURITY_DIR, 'decisions');
-
 export type SecurityDecision = 'allow' | 'block';
 
 export function decisionFileForTab(tabId: number): string {
-  return path.join(DECISIONS_DIR, `tab-${tabId}.json`);
+  return path.join(getDecisionsDir(), `tab-${tabId}.json`);
 }
 
 export interface DecisionRecord {
@@ -532,7 +549,7 @@ export interface DecisionRecord {
 
 export function writeDecision(record: DecisionRecord): void {
   try {
-    fs.mkdirSync(DECISIONS_DIR, { recursive: true, mode: 0o700 });
+    fs.mkdirSync(getDecisionsDir(), { recursive: true, mode: 0o700 });
     const file = decisionFileForTab(record.tabId);
     const tmp = `${file}.tmp.${process.pid}`;
     fs.writeFileSync(tmp, JSON.stringify(record), { mode: 0o600 });
