@@ -324,6 +324,7 @@ Key routing rules:
 - Post-deploy monitoring → invoke /canary
 - Update docs after shipping → invoke /document-release
 - Weekly retro, "how'd we do" → invoke /retro
+- Operator retro, "review my AI usage", prompt habits, Claude/Codex/GStack fix loops → invoke /operator-retro
 - Second opinion, codex review → invoke /codex
 - Safety mode, careful mode, lock it down → invoke /careful or /guard
 - Restrict edits to a directory → invoke /freeze or /unfreeze

@@ -204,11 +204,16 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
     rationale: 'Cross-model benchmark orchestration. Measurement is mechanical; interpretation needs judgment.',
     upgradeTo: 'high',
   },
-  'ai-usage-review': {
+  'operator-retro': {
     bucket: 'high',
     kind: 'analysis',
-    rationale: 'Coaches prompt and AI-workflow patterns from local Claude/Codex sessions. The adapter is thin, but the judgment benefits from deliberate analysis.',
+    rationale: 'Reflects on operator prompt and AI-workflow patterns from Claude, Codex, and GStack session evidence; judgment benefits from deliberate analysis.',
     downgradeTo: 'medium',
+  },
+  'ai-usage-review': {
+    bucket: 'low',
+    kind: 'utility',
+    rationale: 'Deprecated alias that delegates to operator-retro and should not perform analysis itself.',
   },
   'plan-tune': {
     bucket: 'medium',

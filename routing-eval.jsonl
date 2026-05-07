@@ -46,12 +46,12 @@
 {"intent":"ask Codex for a second opinion on this diff","expected_skill":"codex"}
 {"intent":"ask Claude as an outside voice from another host","expected_skill":"claude"}
 {"intent":"make a PDF from this markdown file","expected_skill":"make-pdf"}
-{"intent":"review my AI usage across Claude and Codex sessions","expected_skill":"ai-usage-review"}
-{"intent":"analyze my prompt habits from local AI coding sessions","expected_skill":"ai-usage-review"}
-{"intent":"coach me on how I used Claude Code and Codex this week","expected_skill":"ai-usage-review"}
-{"intent":"read my local AI prompts and tell me how to use AI better","expected_skill":"ai-usage-review"}
-{"intent":"review my Manifold Claude and Codex chats for AI workflow advice","expected_skill":"ai-usage-review"}
-{"intent":"give me source-linked feedback on how I prompted coding agents","expected_skill":"ai-usage-review"}
+{"intent":"review my AI usage across Claude and Codex sessions","expected_skill":"operator-retro"}
+{"intent":"analyze my prompt habits from local AI coding sessions","expected_skill":"operator-retro"}
+{"intent":"coach me on how I used Claude Code and Codex this week","expected_skill":"operator-retro"}
+{"intent":"read my local AI prompts and tell me how to use AI better","expected_skill":"operator-retro"}
+{"intent":"review my Manifold Claude and Codex chats for AI workflow advice","expected_skill":"operator-retro"}
+{"intent":"give me source-linked feedback on how I prompted coding agents","expected_skill":"operator-retro"}
 {"intent":"what is the weather tomorrow","expected_skill":null}
 {"intent":"convert 42 dollars to euros","expected_skill":null}
 {"intent":"write a haiku about coffee","expected_skill":null}

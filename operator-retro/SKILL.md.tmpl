@@ -1,0 +1,180 @@
+---
+name: operator-retro
+preamble-tier: 2
+version: 1.0.0
+description: |
+  Use when transcript or AI-session evidence is required to review how the human
+  operator used Claude, Codex, or GStack: prompt clarity, verification behavior,
+  repeated AI fix loops, model/tool choice, and missed chances to use GStack
+  skills. Reviews operator behavior only. Do not use for shipping cadence, test
+  health, productivity retros, project progress, code correctness, browser QA,
+  or general project learnings; use /retro, /review, /qa, or /learn instead.
+  (gstack)
+triggers:
+  - operator retro
+  - review my AI usage
+  - audit my prompt quality
+  - did I get stuck in fix loops with AI
+  - how did I use Claude and Codex
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Glob
+  - Grep
+  - AskUserQuestion
+---
+
+{{PREAMBLE}}
+
+# /operator-retro — Operator Retro For AI-Assisted Engineering
+
+Review how the human operator used Claude, Codex, and GStack during a sprint. This
+is a Reflect-stage skill about operator behavior, not shipped output.
+
+## Lane
+
+Use `/operator-retro` for:
+
+- prompt clarity, scope boundaries, proof requests, and done states
+- repeated AI fix loops and missed investigation resets
+- model/tool choice and when outside voice would have helped
+- missed GStack leverage such as `/plan-eng-review`, `/investigate`, `/qa`, `/codex`, or `/learn`
+- proposed operator learnings and routing rules that require approval
+
+Do not use `/operator-retro` for:
+
+- `/retro` — shipping cadence, productivity, commits, test health, project progress
+- `/review` — code correctness, PR defects, security or data-safety findings
+- `/qa` — browser/product verification and rendered-state evidence
+- `/learn` — viewing, editing, pruning, or exporting durable learnings
+
+If the user asks for those lanes, route there instead.
+
+## Engine Packaging Rule
+
+Private development may use `AI_USAGE_REVIEW_BIN`. Upstream-ready GStack must not
+depend on machine-local absolute paths. Prefer the vendored engine under this
+skill.
+
+Resolve the engine:
+
+```bash
+GSTACK_ROOT="${GSTACK_ROOT:-$HOME/.claude/skills/gstack}"
+GSTACK_BIN="${GSTACK_BIN:-$GSTACK_ROOT/bin}"
+AI_USAGE_REVIEW_CMD=""
+if [ -n "${AI_USAGE_REVIEW_BIN:-}" ] && [ -x "$AI_USAGE_REVIEW_BIN" ]; then
+  AI_USAGE_REVIEW_CMD="$AI_USAGE_REVIEW_BIN"
+elif [ -f "$GSTACK_ROOT/operator-retro/engine/src/cli.ts" ]; then
+  AI_USAGE_REVIEW_CMD="bun run $GSTACK_ROOT/operator-retro/engine/src/cli.ts"
+elif command -v ai-usage-review >/dev/null 2>&1; then
+  AI_USAGE_REVIEW_CMD="$(command -v ai-usage-review)"
+else
+  echo "OPERATOR_RETRO_ENGINE_NOT_FOUND"
+fi
+echo "AI_USAGE_REVIEW_CMD: ${AI_USAGE_REVIEW_CMD:-missing}"
+```
+
+If `OPERATOR_RETRO_ENGINE_NOT_FOUND`, stop and report that upstream builds need
+`operator-retro/engine` vendored or a pinned package installed with a doctor check.
+Do not fall back to a developer-machine-only path.
+
+## Model Calls
+
+Default behavior must not spend money or make network/model calls. The engine
+writes deterministic analysis plus `coach-prompt.md`.
+
+Only allow model coaching when both are explicitly set:
+
+```bash
+AI_USAGE_REVIEW_ALLOW_MODEL_CALL=ok
+AI_USAGE_REVIEW_MODEL_CMD="<command that reads prompt JSON/stdin and writes strict analysis JSON>"
+```
+
+Model output must be strict JSON and must pass the engine's schema validation
+before rendering. Never render raw model markdown.
+
+## Run
+
+Default window: 7 days. If the user supplied a window, use it.
+
+```bash
+eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
+RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+RUN_DIR="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}/operator-retro/runs/$RUN_ID"
+mkdir -p "$RUN_DIR"
+
+$AI_USAGE_REVIEW_CMD operator-retro \
+  --project "$(pwd)" \
+  --since 7d \
+  --output-dir "$RUN_DIR" \
+  --analysis-engine auto \
+  --gstack-home "${GSTACK_HOME:-$HOME/.gstack}" \
+  --gstack-slug "${SLUG:-unknown}"
+```
+
+Adjust `--since` only if the user asked for a different window. Add
+`--include-experimental-desktop-sources` only if the user explicitly accepts
+desktop-source probing. Manual imports require an explicit user-provided path.
+
+Expected artifacts:
+
+- `report.md`
+- `report.json`
+- `primary-analysis.json`
+- `candidate-learnings.jsonl`
+- `routing-suggestions.json`
+- `coach-prompt.md`
+- `evidence.normalized.jsonl`
+
+## Present The Retro
+
+Read `report.md` and present:
+
+1. one-line read
+2. best run
+3. operator findings
+4. missed GStack leverage
+5. proposed actions
+6. coverage limits
+
+Every claim must carry evidence IDs. Every recommendation must carry guidance
+IDs. If coverage says `timeline_coverage` is not `high`, say "Potential missed
+leverage" instead of "Skipped gate."
+
+## Action Approval
+
+The engine emits proposed actions only. Do not mutate durable memory, routing, or
+skills by default.
+
+If `candidate-learnings.jsonl` contains entries, ask whether the user wants to
+approve any candidate learnings.
+
+If approved, write through GStack's learning helper only if it exists:
+
+```bash
+test -x "$GSTACK_BIN/gstack-learnings-log" && echo "LEARNINGS_LOG_READY" || echo "LEARNINGS_LOG_MISSING"
+```
+
+For each approved candidate, call `gstack-learnings-log` with JSON that includes:
+
+- `skill: "operator-retro"`
+- `type: "operational"`
+- stable key derived from the action title
+- neutral insight text
+- confidence
+- source: `"observed"`
+- evidence IDs
+- report path or report hash
+
+If the helper is missing, stop and say upstream readiness requires adding
+`bin/gstack-learnings-log` with tests before using it.
+
+Routing suggestions remain proposed text unless the user separately approves a
+routing change. Do not edit skills or CLAUDE.md from this skill without explicit
+approval.
+
+## Completion
+
+Finish with the report path and any approved actions written. If no actions were
+approved, say that the retro remained read-only.

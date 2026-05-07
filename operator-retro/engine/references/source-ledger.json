@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "anthropic-claude-code-subagents",
+      "vendor": "Anthropic",
+      "title": "Claude Code subagents",
+      "url": "https://docs.anthropic.com/en/docs/claude-code/sub-agents",
+      "relevance": ["subagents", "context management", "delegation"]
+    },
+    {
+      "id": "anthropic-claude-code-hooks",
+      "vendor": "Anthropic",
+      "title": "Claude Code hooks",
+      "url": "https://docs.anthropic.com/en/docs/claude-code/hooks",
+      "relevance": ["hooks", "tool review", "automation", "guardrails"]
+    },
+    {
+      "id": "anthropic-claude-code-common-workflows",
+      "vendor": "Anthropic",
+      "title": "Claude Code common workflows",
+      "url": "https://docs.anthropic.com/en/docs/claude-code/common-workflows",
+      "relevance": ["plan mode", "workflow", "verification"]
+    },
+    {
+      "id": "anthropic-claude-code-memory",
+      "vendor": "Anthropic",
+      "title": "Claude Code memory",
+      "url": "https://docs.anthropic.com/en/docs/claude-code/memory",
+      "relevance": ["memory", "project instructions", "context"]
+    },
+    {
+      "id": "openai-code-generation",
+      "vendor": "OpenAI",
+      "title": "OpenAI code generation guide",
+      "url": "https://platform.openai.com/docs/guides/code-generation",
+      "relevance": ["codex", "code generation", "reasoning effort"]
+    },
+    {
+      "id": "openai-codex-cloud",
+      "vendor": "OpenAI",
+      "title": "Codex cloud",
+      "url": "https://platform.openai.com/docs/codex",
+      "relevance": ["codex", "parallel background tasks", "ask mode", "code mode"]
+    },
+    {
+      "id": "openai-codex-use-cases",
+      "vendor": "OpenAI",
+      "title": "Codex use cases",
+      "url": "https://developers.openai.com/codex/use-cases",
+      "relevance": ["feature fit", "review", "skills", "workflow"]
+    },
+    {
+      "id": "openai-docs-mcp",
+      "vendor": "OpenAI",
+      "title": "OpenAI Docs MCP",
+      "url": "https://platform.openai.com/docs/docs-mcp",
+      "relevance": ["source lookup", "documentation", "MCP"]
+    },
+    {
+      "id": "agents-md-spec",
+      "vendor": "Open Agents",
+      "title": "AGENTS.md",
+      "url": "https://agents.md/",
+      "relevance": ["agent instructions", "repository guidance"]
+    }
+  ]
+}

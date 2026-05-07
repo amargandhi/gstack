@@ -27,7 +27,8 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/cso`](#cso) | **Chief Security Officer** | OWASP Top 10 + STRIDE threat modeling security audit. Scans for injection, auth, crypto, and access control issues. |
 | [`/document-release`](#document-release) | **Technical Writer** | Update all project docs to match what you just shipped. Catches stale READMEs automatically. |
 | [`/retro`](#retro) | **Eng Manager** | Team-aware weekly retro. Per-person breakdowns, shipping streaks, test health trends, growth opportunities. |
-| [`/ai-usage-review`](#ai-usage-review) | **AI Usage Coach** | Local-first coaching on Claude/Codex prompt habits, feature-fit choices, strengths, and source-linked improvement advice. |
+| [`/operator-retro`](#operator-retro) | **Operator Coach** | Reflect-stage retro on how you operated Claude, Codex, and GStack: prompt clarity, proof habits, fix loops, model/tool choice, and missed leverage. |
+| [`/ai-usage-review`](#ai-usage-review) | **Deprecated Alias** | Explicit-only alias that immediately delegates to `/operator-retro`. |
 | [`/browse`](#browse) | **QA Engineer** | Give the agent eyes. Real Chromium browser, real clicks, real screenshots. ~100ms per command. |
 | [`/setup-browser-cookies`](#setup-browser-cookies) | **Session Manager** | Import cookies from your real browser (Chrome, Arc, Brave, Edge) into the headless session. Test authenticated pages. |
 | [`/autoplan`](#autoplan) | **Review Pipeline** | One command, fully reviewed plan. Runs CEO → design → eng → DX review automatically with encoded decision principles. Surfaces only taste decisions for your approval. |
@@ -815,31 +816,37 @@ It saves a JSON snapshot to `.context/retros/` so the next run can show trends.
 
 ---
 
-## `/ai-usage-review`
+## `/operator-retro`
 
-This is the AI usage coach.
+This is the operator retro for AI-assisted engineering.
 
-It does not review the code you shipped. It reviews how you asked AI to help:
-your prompts, tool/session metadata, model/effort choices, and the workflow
-shape of Claude/Codex sessions.
+It does not review the code you shipped. It reviews how you operated the AI
+factory: your Claude/Codex prompts, tool/session metadata, verification habits,
+model/tool choices, repeated fix loops, and missed chances to use GStack skills.
 
-The skill is deliberately a thin adapter. The standalone `ai-usage-review` CLI
-does the real work: read local stores, redact evidence, assign `ev-...` IDs,
-build a prompt pack, validate citations, and write a report. GStack only routes
-to that CLI.
+The evidence engine is vendored under `operator-retro/engine` for upstream-safe
+packaging. Private forks may use `AI_USAGE_REVIEW_BIN`, but the skill never
+depends on a developer-machine path. It emits deterministic reports by default
+and only runs model coaching when `AI_USAGE_REVIEW_ALLOW_MODEL_CALL=ok` and
+`AI_USAGE_REVIEW_MODEL_CMD` are explicitly set.
 
 Use it when you want to answer questions like:
 
-- What do my prompts repeatedly ask AI to do?
-- Where am I already using AI well?
-- Where did I make the model infer too much?
-- When would plan mode, subagents, hooks, memory, AGENTS.md, or second opinion
-  have fit the work better?
-- What should I change in the next session?
+- Did I ask for proof and scope boundaries, or only implementation?
+- Did I get stuck in repeated AI fix loops instead of running `/investigate`?
+- Did UI work have enough `/qa` evidence before shipping?
+- Which repeated preference should become a proposed `/learn` entry?
+- Which GStack skill would have made the next sprint safer or faster?
 
-It is coaching, not compliance. A good report names evidence, gives source
-links, and says what it could not see. It stays separate from `/retro`,
-`/review`, `/learn`, `/office-hours`, and `/benchmark-models`.
+It emits proposed actions only. Learning candidates and routing suggestions stay
+read-only until the user approves them. Every claim carries evidence IDs, every
+recommendation carries guidance IDs, and weak artifact coverage is rendered as
+"Potential missed leverage" rather than "Skipped gate."
+
+## `/ai-usage-review`
+
+Deprecated alias. Use `/operator-retro`. This alias exists for explicit
+backward-compatible invocation only and should not perform analysis itself.
 
 ---
 

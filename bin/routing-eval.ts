@@ -33,7 +33,7 @@ const STOPWORDS = new Set([
 
 const ALIASES: Record<string, string[]> = {
   autoplan: ['autoplan', 'ceo', 'design', 'eng', 'dx', 'review', 'pipeline'],
-  'ai-usage-review': ['ai', 'usage', 'prompts', 'prompt', 'prompted', 'claude', 'code', 'codex', 'sessions', 'coach', 'coaching', 'workflow', 'source', 'linked', 'feedback', 'agents'],
+  'ai-usage-review': [],
   benchmark: ['benchmark', 'performance', 'vitals', 'regression', 'latency', 'load'],
   'benchmark-models': ['model', 'models', 'benchmark', 'compare', 'claude', 'gpt', 'gemini'],
   browse: ['browser', 'browse', 'page', 'click', 'selector', 'dom', 'chromium'],
@@ -64,6 +64,7 @@ const ALIASES: Record<string, string[]> = {
   'make-pdf': ['pdf', 'markdown', 'export', 'document'],
   'office-hours': ['office', 'hours', 'yc', 'startup', 'reframe', 'idea'],
   'open-gstack-browser': ['open', 'visible', 'browser', 'side', 'panel', 'chrome'],
+  'operator-retro': ['ai', 'usage', 'prompts', 'prompt', 'prompted', 'operator', 'retro', 'claude', 'code', 'codex', 'gstack', 'sessions', 'coach', 'coaching', 'workflow', 'source', 'linked', 'feedback', 'agents', 'fix', 'loops', 'verification'],
   'pair-agent': ['pair', 'remote', 'agent', 'setup', 'key', 'browser'],
   'plan-ceo-review': ['ceo', 'founder', 'strategy', 'scope', 'product', '10-star'],
   'plan-design-review': ['plan', 'design', 'review', 'dimension', '10', 'visual'],
@@ -133,6 +134,7 @@ function loadFixtures(): Fixture[] {
 }
 
 function score(intent: string, skill: Skill): number {
+  if (skill.name === 'ai-usage-review' && !intent.toLowerCase().includes('/ai-usage-review')) return 0;
   const intentTokens = tokens(intent);
   const skillTokens = tokens(`${skill.name} ${skill.description} ${(ALIASES[skill.name] || []).join(' ')}`);
   let score = 0;

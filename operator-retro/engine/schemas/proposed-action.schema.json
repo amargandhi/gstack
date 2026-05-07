@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OperatorRetroProposedAction",
+  "type": "object",
+  "required": ["action_id", "type", "title", "body", "status", "evidence_ids", "guidance_ids"],
+  "properties": {
+    "type": {
+      "enum": ["learning_candidate", "routing_suggestion", "next_prompt", "skill_suggestion"]
+    },
+    "status": { "const": "proposed" },
+    "evidence_ids": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^ev-" },
+      "minItems": 1
+    },
+    "guidance_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  }
+}

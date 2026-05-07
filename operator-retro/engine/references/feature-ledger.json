@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "features": [
+    {
+      "id": "plan-mode",
+      "label": "Plan mode / upfront planning",
+      "source_ids": ["anthropic-claude-code-common-workflows"],
+      "signals": ["plan", "architecture", "scope", "before coding", "design"]
+    },
+    {
+      "id": "subagents",
+      "label": "Subagents / delegated context windows",
+      "source_ids": ["anthropic-claude-code-subagents"],
+      "signals": ["parallel", "independent review", "large task", "separate context", "delegate"]
+    },
+    {
+      "id": "hooks",
+      "label": "Hooks / review gates",
+      "source_ids": ["anthropic-claude-code-hooks"],
+      "signals": ["always check", "block", "before tool", "after edit", "verify automatically"]
+    },
+    {
+      "id": "codex-second-opinion",
+      "label": "Codex/OpenAI second opinion",
+      "source_ids": ["openai-code-generation", "openai-codex-use-cases"],
+      "signals": ["second opinion", "review", "challenge", "other model", "codex"]
+    },
+    {
+      "id": "memory-or-agents-md",
+      "label": "Memory / AGENTS.md / project instructions",
+      "source_ids": ["anthropic-claude-code-memory", "agents-md-spec"],
+      "signals": ["remember", "same mistake", "project rule", "instruction", "preference"]
+    },
+    {
+      "id": "codify-repeatable-work",
+      "label": "Skills / reusable workflow",
+      "source_ids": ["openai-codex-use-cases"],
+      "signals": ["repeat", "again", "every time", "workflow", "skill"]
+    }
+  ]
+}

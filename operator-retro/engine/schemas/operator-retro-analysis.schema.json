@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OperatorRetroAnalysis",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "project",
+    "analysis_engine",
+    "one_line_read",
+    "operator_findings",
+    "best_runs",
+    "missed_gstack_leverage",
+    "proposed_actions",
+    "coverage_limits",
+    "guidance_ids",
+    "coverage",
+    "evidence_coverage"
+  ],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "analysis_engine": { "enum": ["deterministic", "model"] },
+    "operator_findings": { "type": "array" },
+    "best_runs": { "type": "array" },
+    "missed_gstack_leverage": { "type": "array" },
+    "proposed_actions": { "type": "array" },
+    "coverage_limits": { "type": "array" }
+  }
+}

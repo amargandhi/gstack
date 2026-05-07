@@ -7,7 +7,7 @@ focused on three things:
 2. Keeping the fork's code-quality and model-routing additions deterministic.
 3. Turning fork claims into commands that fail when the claim drifts.
 
-Current auditable surface: 50 generated skills. Verify it with:
+Current auditable surface: 51 generated skills. Verify it with:
 
 ```bash
 bun run skill:check
@@ -92,7 +92,7 @@ Benchmark status: pending. `docs/MODEL_BENCHMARKS.md` and `BENCHMARKS.md` do not
 
 Open Claude Code and paste this. Claude does the rest.
 
-> Install gstack (Amar's Fork): run **`git clone --single-branch --depth 1 https://github.com/amargandhi/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`** then add a "gstack" section to CLAUDE.md that says to use the /browse skill from gstack for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, and lists the available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /challenge, /glossary, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /document-release, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn. Then ask the user if they also want to add gstack to the current project so teammates get it.
+> Install gstack (Amar's Fork): run **`git clone --single-branch --depth 1 https://github.com/amargandhi/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`** then add a "gstack" section to CLAUDE.md that says to use the /browse skill from gstack for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, and lists the available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /challenge, /glossary, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /operator-retro, /investigate, /document-release, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn. Then ask the user if they also want to add gstack to the current project so teammates get it.
 
 ### Step 2: Team mode — auto-update for shared repos (recommended)
 
@@ -203,7 +203,7 @@ Each skill feeds into the next. `/office-hours` writes a design doc that `/plan-
 | `/benchmark` | **Performance Engineer** | Baseline page load times, Core Web Vitals, and resource sizes. Compare before/after on every PR. |
 | `/document-release` | **Technical Writer** | Update all project docs to match what you just shipped. Catches stale READMEs automatically. |
 | `/retro` | **Eng Manager** | Team-aware weekly retro. Per-person breakdowns, shipping streaks, test health trends, growth opportunities. `/retro global` runs across all your projects and AI tools (Claude Code, Codex, Gemini). |
-| `/ai-usage-review` | **AI Usage Coach** | Local-first coaching on your Claude/Codex prompts. Names what you do well, recommends better AI workflow choices, and links advice to evidence and sources. |
+| `/operator-retro` | **Operator Coach** | Reflect-stage retro on how you operated Claude, Codex, and GStack. Reviews prompt clarity, proof habits, fix loops, model/tool choice, and proposed GStack leverage, with evidence and guidance IDs. |
 | `/browse` | **QA Engineer** | Give the agent eyes. Real Chromium browser, real clicks, real screenshots. ~100ms per command. `/open-gstack-browser` launches GStack Browser with sidebar, anti-bot stealth, and auto model routing. |
 | `/setup-browser-cookies` | **Session Manager** | Import cookies from your real browser (Chrome, Arc, Brave, Edge) into the headless session. Test authenticated pages. |
 | `/autoplan` | **Review Pipeline** | One command, fully reviewed plan. Runs CEO → design → eng review automatically with encoded decision principles. Surfaces only taste decisions for your approval. |
@@ -458,6 +458,7 @@ Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-desig
 /design-consultation, /design-shotgun, /design-html, /challenge, /glossary, /review, /ship,
 /land-and-deploy, /canary, /benchmark, /browse, /open-gstack-browser, /qa, /qa-only,
 /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /sync-gbrain, /retro,
+/operator-retro,
 /investigate, /document-release, /codex, /cso, /autoplan, /pair-agent, /careful, /freeze,
 /guard, /unfreeze, /gstack-upgrade, /learn.
 ```
@@ -491,6 +492,7 @@ Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-desig
 | **Ship** | `/ship` | Sync, test, version, changelog, PR |
 | | `/document-release` | Update docs to match what shipped |
 | **Reflect** | `/retro` | Weekly retro with per-person metrics |
+| | `/operator-retro` | Operator retro for Claude/Codex/GStack usage |
 | **Security** | `/cso` | OWASP Top 10 + STRIDE security audit. `--stability` runs Nygard Release It! patterns audit |
 | **Safety** | `/careful` | Warns before destructive commands |
 | | `/freeze` | Lock edits to one directory |

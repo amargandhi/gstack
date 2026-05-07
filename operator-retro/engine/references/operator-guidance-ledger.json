@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "guidance": [
+    {
+      "id": "operator.proof-with-implementation",
+      "source_type": "local_protocol",
+      "source_path_or_url": "references/coaching-protocol.md",
+      "claim": "Implementation prompts should include the proof command or observable done state.",
+      "last_verified": "2026-05-07",
+      "content_hash": "b5c9e2c30a31"
+    },
+    {
+      "id": "operator.scope-boundary",
+      "source_type": "local_protocol",
+      "source_path_or_url": "references/coaching-protocol.md",
+      "claim": "Broad implementation asks need explicit scope boundaries and non-goals.",
+      "last_verified": "2026-05-07",
+      "content_hash": "68e6b0eb2710"
+    },
+    {
+      "id": "gstack.plan-before-build",
+      "source_type": "gstack_skill",
+      "source_path_or_url": "gstack:plan-eng-review",
+      "claim": "Use planning or engineering review before broad or architectural implementation.",
+      "last_verified": "2026-05-07",
+      "content_hash": "f3c96a64ef10"
+    },
+    {
+      "id": "gstack.investigate-after-fix-loop",
+      "source_type": "gstack_skill",
+      "source_path_or_url": "gstack:investigate",
+      "claim": "After repeated failed fixes, switch to hypothesis-driven investigation before patching again.",
+      "last_verified": "2026-05-07",
+      "content_hash": "4a548fba1e3c"
+    },
+    {
+      "id": "gstack.qa-after-ui-change",
+      "source_type": "gstack_skill",
+      "source_path_or_url": "gstack:qa",
+      "claim": "UI-affecting work should be verified through QA or browser-facing checks before shipping.",
+      "last_verified": "2026-05-07",
+      "content_hash": "2c9154f2dd29"
+    },
+    {
+      "id": "gstack.learn-repeated-preference",
+      "source_type": "gstack_skill",
+      "source_path_or_url": "gstack:learn",
+      "claim": "Repeated operator preferences should become explicit project learnings or instructions.",
+      "last_verified": "2026-05-07",
+      "content_hash": "410f695f09a5"
+    },
+    {
+      "id": "gstack.operator-retro-boundary",
+      "source_type": "local_protocol",
+      "source_path_or_url": "references/coaching-protocol.md",
+      "claim": "Operator retro findings must review AI collaboration behavior, not shipped output or code correctness.",
+      "last_verified": "2026-05-07",
+      "content_hash": "b8e8c58e6c0c"
+    }
+  ]
+}

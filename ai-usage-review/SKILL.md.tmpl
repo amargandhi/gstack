@@ -3,97 +3,15 @@ name: ai-usage-review
 preamble-tier: 2
 version: 1.0.0
 description: |
-  Local-first AI usage coaching. Reviews the user's prompts and tool/session
-  metadata from local Claude/Codex conversations, then teaches how to use AI
-  better with evidence IDs and source-linked recommendations. Use when asked to
-  review AI usage, prompt habits, Claude/Codex sessions, AI coding sessions, or
-  how the user worked with AI. Does not review code correctness, replace /retro,
-  /review, /learn, /office-hours, or /benchmark-models. (gstack adapter)
-triggers:
-  - review my AI usage
-  - review my prompts
-  - analyze my Claude sessions
-  - analyze my Codex sessions
+  Deprecated alias for /operator-retro. Use only when the user explicitly invokes
+  /ai-usage-review; immediately load /operator-retro and continue. Do not use
+  this alias for implicit routing. (gstack)
 allowed-tools:
-  - Bash
   - Read
-  - AskUserQuestion
 ---
 
-{{PREAMBLE}}
+# Deprecated Alias
 
-# /ai-usage-review — Standalone Adapter
+Use `/operator-retro`.
 
-This is a thin adapter for the standalone `ai-usage-review` CLI.
-
-The standalone repo is canonical. GStack should route to it, not reimplement its
-collector, evidence schema, coaching logic, or guidance ledger.
-
-## Lane
-
-Use this skill for coaching how the user used AI: prompts, workflow choices,
-tool/session metadata, strengths, teaching notes, and feature-fit advice.
-
-Do not use this skill for:
-
-- `/retro` — project productivity, commits, shipping history
-- `/review` — code correctness or PR defects
-- `/learn` — managing stored learnings
-- `/office-hours` — product/startup idea diagnosis
-- `/benchmark-models` — comparing model performance
-
-## Resolve CLI
-
-```bash
-AI_USAGE_REVIEW_CMD=""
-if [ -n "${AI_USAGE_REVIEW_BIN:-}" ] && [ -x "$AI_USAGE_REVIEW_BIN" ]; then
-  AI_USAGE_REVIEW_CMD="$AI_USAGE_REVIEW_BIN"
-elif command -v ai-usage-review >/dev/null 2>&1; then
-  AI_USAGE_REVIEW_CMD="$(command -v ai-usage-review)"
-elif [ -n "${AI_USAGE_REVIEW_ROOT:-}" ] && [ -f "$AI_USAGE_REVIEW_ROOT/src/cli.ts" ]; then
-  AI_USAGE_REVIEW_CMD="bun run $AI_USAGE_REVIEW_ROOT/src/cli.ts"
-elif [ -f "$HOME/Developer/AI-Research/ai-usage-review/src/cli.ts" ]; then
-  AI_USAGE_REVIEW_CMD="bun run $HOME/Developer/AI-Research/ai-usage-review/src/cli.ts"
-else
-  echo "AI_USAGE_REVIEW_NOT_FOUND"
-fi
-echo "AI_USAGE_REVIEW_CMD: ${AI_USAGE_REVIEW_CMD:-missing}"
-```
-
-If `AI_USAGE_REVIEW_NOT_FOUND`, stop and tell the user to install the standalone
-repo or set `AI_USAGE_REVIEW_ROOT=/path/to/ai-usage-review`.
-
-## Writing Standard
-
-Present the output like an engineering lesson:
-
-- start with the strongest observed pattern
-- name what the user did well
-- explain why a pattern matters
-- cite evidence IDs and source links
-- give a concrete next-session script
-- say what the review could not see
-
-Do not turn the report into a generic scorecard. Do not imply complete desktop
-coverage when the standalone CLI reported schema skips or experimental sources.
-
-## Interactive Workflow
-
-1. Ask what the user was trying to accomplish in the reviewed window unless they
-   said "no questions" or "just run it".
-2. Run the standalone CLI:
-   ```bash
-   $AI_USAGE_REVIEW_CMD review --project "$(pwd)" --since 21d --no-questions --no-second-opinion
-   ```
-   Adjust `--project`, `--since`, `--second-opinion`, and
-   `--include-experimental-desktop-sources` if the user specified them.
-3. Read the printed `report.md` path.
-4. Present the teaching summary first: one-line read, strengths, patterns,
-   feature-fit advice, next-session script.
-5. Ask whether they want to go deeper, run second opinion, skip, next, or end.
-
-## Second Opinion
-
-If the user asks for second opinion, pass `--second-opinion`. The standalone CLI
-handles provider selection and validation. Do not run your own separate review
-unless the CLI asks you to.
+Do not perform analysis here. Load `/operator-retro` and continue.

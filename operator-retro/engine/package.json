@@ -1,0 +1,19 @@
+{
+  "name": "ai-usage-review",
+  "version": "0.1.0",
+  "description": "Local-first AI usage coach for Claude/Codex prompts, workflow patterns, and source-linked teaching reports.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "ai-usage-review": "./src/cli.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "lint": "bun test test/redaction.test.ts test/validator.test.ts",
+    "typecheck": "bun build src/cli.ts --target bun --outdir /tmp/ai-usage-review-typecheck >/dev/null",
+    "install:codex": "bun run scripts/install-codex-skill.ts",
+    "pack:skill": "bun run scripts/pack-skill.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

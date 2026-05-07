@@ -1,0 +1,35 @@
+{"intent":"review how I used Claude and Codex on this project","expected_skill":"operator-retro"}
+{"intent":"audit my prompt quality over the last week","expected_skill":"operator-retro"}
+{"intent":"did I get stuck in fix loops with AI","expected_skill":"operator-retro"}
+{"intent":"run an operator retro for this sprint","expected_skill":"operator-retro"}
+{"intent":"tell me where I underused gstack skills while working with agents","expected_skill":"operator-retro"}
+{"intent":"look at my local AI sessions and coach my operator habits","expected_skill":"operator-retro"}
+{"intent":"how well did I route Claude, Codex, and GStack this week","expected_skill":"operator-retro"}
+{"intent":"find repeated prompts that should become learnings or routing rules","expected_skill":"operator-retro"}
+{"intent":"review whether I asked for enough verification in AI sessions","expected_skill":"operator-retro"}
+{"intent":"show me the best and worst runs from my AI coding sessions","expected_skill":"operator-retro"}
+{"intent":"analyze whether I kept asking for fixes instead of investigating","expected_skill":"operator-retro"}
+{"intent":"give me evidence-backed feedback on how I operated the AI team","expected_skill":"operator-retro"}
+{"intent":"what did we ship last week","expected_skill":"retro"}
+{"intent":"run the weekly engineering retrospective","expected_skill":"retro"}
+{"intent":"how healthy was our test coverage this sprint","expected_skill":"retro"}
+{"intent":"summarize project progress across repos","expected_skill":"retro"}
+{"intent":"show shipping streaks and team contributions","expected_skill":"retro"}
+{"intent":"compare this week's engineering output to last week","expected_skill":"retro"}
+{"intent":"what were the commit hotspots this month","expected_skill":"retro"}
+{"intent":"give me a productivity retro for the repo","expected_skill":"retro"}
+{"intent":"review the sprint's merged PRs and test health","expected_skill":"retro"}
+{"intent":"run a global retro across all projects","expected_skill":"retro"}
+{"intent":"what patterns has gstack learned about this repo","expected_skill":"learn"}
+{"intent":"remember that I prefer pnpm over npm","expected_skill":"learn"}
+{"intent":"show me stored project learnings","expected_skill":"learn"}
+{"intent":"prune stale learnings for this codebase","expected_skill":"learn"}
+{"intent":"export the learnings file","expected_skill":"learn"}
+{"intent":"review this PR for bugs","expected_skill":"review"}
+{"intent":"check my diff before I land it","expected_skill":"review"}
+{"intent":"do a code review of these changes","expected_skill":"review"}
+{"intent":"test the staging URL in a browser","expected_skill":"qa"}
+{"intent":"run browser QA and verify the page works","expected_skill":"qa"}
+{"intent":"what is the best model for this task","expected_skill":null}
+{"intent":"make a PDF of the launch memo","expected_skill":null}
+{"intent":"open the repo docs and summarize them","expected_skill":null}
