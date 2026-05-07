@@ -204,6 +204,12 @@ export const THINKING_PROFILES: Record<string, ThinkingProfile> = {
     rationale: 'Cross-model benchmark orchestration. Measurement is mechanical; interpretation needs judgment.',
     upgradeTo: 'high',
   },
+  'ai-usage-review': {
+    bucket: 'high',
+    kind: 'analysis',
+    rationale: 'Coaches prompt and AI-workflow patterns from local Claude/Codex sessions. The adapter is thin, but the judgment benefits from deliberate analysis.',
+    downgradeTo: 'medium',
+  },
   'plan-tune': {
     bucket: 'medium',
     kind: 'analysis',

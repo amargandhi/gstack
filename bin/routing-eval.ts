@@ -33,6 +33,7 @@ const STOPWORDS = new Set([
 
 const ALIASES: Record<string, string[]> = {
   autoplan: ['autoplan', 'ceo', 'design', 'eng', 'dx', 'review', 'pipeline'],
+  'ai-usage-review': ['ai', 'usage', 'prompts', 'prompt', 'prompted', 'claude', 'code', 'codex', 'sessions', 'coach', 'coaching', 'workflow', 'source', 'linked', 'feedback', 'agents'],
   benchmark: ['benchmark', 'performance', 'vitals', 'regression', 'latency', 'load'],
   'benchmark-models': ['model', 'models', 'benchmark', 'compare', 'claude', 'gpt', 'gemini'],
   browse: ['browser', 'browse', 'page', 'click', 'selector', 'dom', 'chromium'],

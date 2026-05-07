@@ -27,6 +27,7 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/cso`](#cso) | **Chief Security Officer** | OWASP Top 10 + STRIDE threat modeling security audit. Scans for injection, auth, crypto, and access control issues. |
 | [`/document-release`](#document-release) | **Technical Writer** | Update all project docs to match what you just shipped. Catches stale READMEs automatically. |
 | [`/retro`](#retro) | **Eng Manager** | Team-aware weekly retro. Per-person breakdowns, shipping streaks, test health trends, growth opportunities. |
+| [`/ai-usage-review`](#ai-usage-review) | **AI Usage Coach** | Local-first coaching on Claude/Codex prompt habits, feature-fit choices, strengths, and source-linked improvement advice. |
 | [`/browse`](#browse) | **QA Engineer** | Give the agent eyes. Real Chromium browser, real clicks, real screenshots. ~100ms per command. |
 | [`/setup-browser-cookies`](#setup-browser-cookies) | **Session Manager** | Import cookies from your real browser (Chrome, Arc, Brave, Edge) into the headless session. Test authenticated pages. |
 | [`/autoplan`](#autoplan) | **Review Pipeline** | One command, fully reviewed plan. Runs CEO → design → eng → DX review automatically with encoded decision principles. Surfaces only taste decisions for your approval. |
@@ -811,6 +812,34 @@ Claude: Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs,
 ```
 
 It saves a JSON snapshot to `.context/retros/` so the next run can show trends.
+
+---
+
+## `/ai-usage-review`
+
+This is the AI usage coach.
+
+It does not review the code you shipped. It reviews how you asked AI to help:
+your prompts, tool/session metadata, model/effort choices, and the workflow
+shape of Claude/Codex sessions.
+
+The skill is deliberately a thin adapter. The standalone `ai-usage-review` CLI
+does the real work: read local stores, redact evidence, assign `ev-...` IDs,
+build a prompt pack, validate citations, and write a report. GStack only routes
+to that CLI.
+
+Use it when you want to answer questions like:
+
+- What do my prompts repeatedly ask AI to do?
+- Where am I already using AI well?
+- Where did I make the model infer too much?
+- When would plan mode, subagents, hooks, memory, AGENTS.md, or second opinion
+  have fit the work better?
+- What should I change in the next session?
+
+It is coaching, not compliance. A good report names evidence, gives source
+links, and says what it could not see. It stays separate from `/retro`,
+`/review`, `/learn`, `/office-hours`, and `/benchmark-models`.
 
 ---
 
